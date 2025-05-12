@@ -26,7 +26,7 @@ export function MobileNav() {
               key={item.href}
               href={item.href}
               className={`flex flex-col items-center justify-center w-full h-full transition-colors ${
-                isActive ? "text-primary" : "text-gray-400"
+                isActive ? "text-primary" : "text-white"
               }`}
             >
               {item.icon}

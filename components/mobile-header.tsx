@@ -45,9 +45,9 @@ export function MobileHeader() {
   const handleModeChange = (value: string) => {
     setMode(value as "buy" | "sell")
     if (value === "buy") {
-      router.push("/services?type=offering")
+      router.push("/")
     } else {
-      router.push("/services?type=requesting")
+      router.push("/sell")
     }
   }
 

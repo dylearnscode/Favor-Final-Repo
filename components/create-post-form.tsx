@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/hooks/use-toast"
 import { Upload, ImageIcon, X } from "lucide-react"
 
-export function CreatePostForm() {
+export function CreatePostForm({ type = "offering" }: { type?: "offering" | "requesting" }) {
   const router = useRouter()
   const { supabase } = useSupabase()
   const { toast } = useToast()
@@ -113,7 +113,7 @@ export function CreatePostForm() {
         price: Number.parseFloat(formData.price || "0"),
         category: formData.category,
         user_id: user.id,
-        is_offering: true, // Default to offering
+        is_offering: type === "offering",
         status: "active",
         image_url: imageUrl,
       })
@@ -142,8 +142,10 @@ export function CreatePostForm() {
   return (
     <Card className="border-gray-800">
       <CardHeader>
-        <CardTitle>Create a Post</CardTitle>
-        <CardDescription>Share a service you want to offer</CardDescription>
+        <CardTitle>Create a {type === "offering" ? "Service" : "Request"}</CardTitle>
+        <CardDescription>
+          {type === "offering" ? "Share a service you want to offer" : "Request a service you need"}
+        </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">

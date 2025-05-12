@@ -59,25 +59,33 @@ export default function SignupPage() {
 
       if (error) throw error
 
+      console.log("User created:", data.user)
+
       // Create profile in the database
       if (data.user) {
         const { error: profileError } = await supabase.from("profiles").insert({
           id: data.user.id,
           username: formData.username,
           rating: 5.0, // Default rating for new users
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
 
-        if (profileError) throw profileError
+        if (profileError) {
+          console.error("Profile creation error:", profileError)
+          throw profileError
+        }
       }
 
       toast({
         title: "Account created",
-        description: "Your account has been created successfully",
+        description: "Your account has been created successfully. Please log in.",
       })
 
       // Redirect to login page
       router.push("/login")
     } catch (error: any) {
+      console.error("Signup error:", error)
       toast({
         title: "Error",
         description: error.message || "Failed to create account",

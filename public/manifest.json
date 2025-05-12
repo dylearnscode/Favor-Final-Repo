@@ -4,8 +4,8 @@
   "description": "Exchange services with others in a secure environment",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#2563EB",
+  "theme_color": "#2563EB",
   "orientation": "portrait",
   "icons": [
     {
