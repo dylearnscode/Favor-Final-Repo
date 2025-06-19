@@ -1,0 +1,98 @@
+// Mock data for development when Supabase is not configured
+export const mockCategories = [
+  { id: 1, name: "Professional", icon: "💼", color: "#3B82F6" },
+  { id: 2, name: "Creative", icon: "🎨", color: "#8B5CF6" },
+  { id: 3, name: "Technical", icon: "💻", color: "#10B981" },
+  { id: 4, name: "Personal", icon: "👤", color: "#F59E0B" },
+  { id: 5, name: "Education", icon: "📚", color: "#EF4444" },
+]
+
+export const mockServices = [
+  {
+    id: 1,
+    title: "McKinsey Strategy Consulting",
+    description:
+      "Former McKinsey consultant offering strategic business advice and market analysis for startups and established companies.",
+    price: 150,
+    category: "Professional",
+    user_id: "1",
+    status: "active",
+    is_offering: true,
+    created_at: new Date().toISOString(),
+    profiles: {
+      username: "sarah_mckinsey",
+      avatar_url: "/placeholder.svg?height=40&width=40",
+      rating: 4.9,
+      description: "Former McKinsey consultant with 8+ years experience",
+    },
+  },
+  {
+    id: 2,
+    title: "Logo Design & Branding",
+    description: "Professional logo design and complete brand identity packages for businesses of all sizes.",
+    price: 75,
+    category: "Creative",
+    user_id: "2",
+    status: "active",
+    is_offering: true,
+    created_at: new Date().toISOString(),
+    profiles: {
+      username: "design_pro",
+      avatar_url: "/placeholder.svg?height=40&width=40",
+      rating: 4.8,
+      description: "Creative designer with 5+ years experience",
+    },
+  },
+  {
+    id: 3,
+    title: "Full-Stack Web Development",
+    description:
+      "Custom web applications built with React, Node.js, and modern technologies. From concept to deployment.",
+    price: 100,
+    category: "Technical",
+    user_id: "3",
+    status: "active",
+    is_offering: true,
+    created_at: new Date().toISOString(),
+    profiles: {
+      username: "dev_master",
+      avatar_url: "/placeholder.svg?height=40&width=40",
+      rating: 4.7,
+      description: "Full-stack developer with 6+ years experience",
+    },
+  },
+  {
+    id: 4,
+    title: "Personal Fitness Training",
+    description: "Personalized workout plans and nutrition guidance to help you reach your fitness goals.",
+    price: 50,
+    category: "Personal",
+    user_id: "4",
+    status: "active",
+    is_offering: true,
+    created_at: new Date().toISOString(),
+    profiles: {
+      username: "fit_coach",
+      avatar_url: "/placeholder.svg?height=40&width=40",
+      rating: 4.9,
+      description: "Certified personal trainer with 4+ years experience",
+    },
+  },
+  {
+    id: 5,
+    title: "Math Tutoring (Calculus & Statistics)",
+    description: "Expert math tutoring for high school and college students. Specializing in calculus and statistics.",
+    price: 40,
+    category: "Education",
+    user_id: "5",
+    status: "active",
+    is_offering: true,
+    created_at: new Date().toISOString(),
+    profiles: {
+      username: "math_tutor",
+      avatar_url: "/placeholder.svg?height=40&width=40",
+      rating: 4.8,
+      description: "PhD in Mathematics with 10+ years teaching experience",
+    },
+  },
+]

@@ -1,36 +1,24 @@
 "use client"
 
 import type React from "react"
-
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState } from "react"
 import { createBrowserClient } from "@/lib/supabase-browser"
 import type { SupabaseClient } from "@supabase/supabase-js"
-import type { Database } from "@/lib/database.types"
 
 type SupabaseContext = {
-  supabase: SupabaseClient<Database>
+  supabase: SupabaseClient | null
 }
 
 const Context = createContext<SupabaseContext | undefined>(undefined)
 
-export function SupabaseProvider({ children }: { children: React.ReactNode }) {
+export default function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const [supabase] = useState(() => createBrowserClient())
 
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      // Refresh the page on auth state change
-      // This is a simple approach - in a real app you might want to
-      // update the UI without a full refresh
-    })
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [supabase])
-
-  return <Context.Provider value={{ supabase }}>{children}</Context.Provider>
+  return (
+    <Context.Provider value={{ supabase }}>
+      <>{children}</>
+    </Context.Provider>
+  )
 }
 
 export const useSupabase = () => {
@@ -40,3 +28,6 @@ export const useSupabase = () => {
   }
   return context
 }
+
+// Export for compatibility
+export { SupabaseProvider }

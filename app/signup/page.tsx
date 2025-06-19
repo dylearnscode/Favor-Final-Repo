@@ -47,7 +47,10 @@ export default function SignupPage() {
 
     try {
       // Sign up with Supabase Auth
-      const { data, error } = await supabase.auth.signUp({
+      const {
+        data: { user, session },
+        error,
+      } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
@@ -59,14 +62,24 @@ export default function SignupPage() {
 
       if (error) throw error
 
-      console.log("User created:", data.user)
+      console.log("User created:", user)
+
+      // IMPORTANT: Wait for session to be available
+      if (!session) {
+        toast({
+          title: "Check your email",
+          description: "Please check your email for a verification link.",
+        })
+        router.push("/login")
+        return
+      }
 
       // Create profile in the database
-      if (data.user) {
+      if (user) {
         const { error: profileError } = await supabase.from("profiles").insert({
-          id: data.user.id,
+          id: user.id,
           username: formData.username,
-          rating: 5.0, // Default rating for new users
+          rating: 5.0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -82,7 +95,6 @@ export default function SignupPage() {
         description: "Your account has been created successfully. Please log in.",
       })
 
-      // Redirect to login page
       router.push("/login")
     } catch (error: any) {
       console.error("Signup error:", error)
