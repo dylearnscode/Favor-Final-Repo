@@ -1,10 +1,6 @@
 import type { Config } from "tailwindcss"
 
-<<<<<<< HEAD
-const config = {
-=======
 const config: Config = {
->>>>>>> c1b4b79 (Complete user authentication flows, UI, and SQL schema for Favor app)
   darkMode: ["class"],
   content: [
     "./pages/**/*.{ts,tsx}",
@@ -23,12 +19,6 @@ const config: Config = {
       },
     },
     extend: {
-<<<<<<< HEAD
-      fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
-      },
-=======
->>>>>>> c1b4b79 (Complete user authentication flows, UI, and SQL schema for Favor app)
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -63,10 +53,6 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-<<<<<<< HEAD
-        "favor-blue": "#2563EB",
-=======
->>>>>>> c1b4b79 (Complete user authentication flows, UI, and SQL schema for Favor app)
       },
       borderRadius: {
         lg: "var(--radius)",

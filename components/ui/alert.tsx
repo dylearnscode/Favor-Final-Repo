@@ -9,64 +9,19 @@ const alertVariants = cva(
     variants: {
       variant: {
         default: "bg-background text-foreground",
-<<<<<<< HEAD
-        destructive:
-          "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
-=======
         destructive: "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
->>>>>>> c1b4b79 (Complete user authentication flows, UI, and SQL schema for Favor app)
       },
     },
     defaultVariants: {
       variant: "default",
     },
-<<<<<<< HEAD
-  }
-=======
   },
->>>>>>> c1b4b79 (Complete user authentication flows, UI, and SQL schema for Favor app)
 )
 
 const Alert = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
 >(({ className, variant, ...props }, ref) => (
-<<<<<<< HEAD
-  <div
-    ref={ref}
-    role="alert"
-    className={cn(alertVariants({ variant }), className)}
-    {...props}
-  />
-))
-Alert.displayName = "Alert"
-
-const AlertTitle = React.forwardRef<
-  HTMLParagraphElement,
-  React.HTMLAttributes<HTMLHeadingElement>
->(({ className, ...props }, ref) => (
-  <h5
-    ref={ref}
-    className={cn("mb-1 font-medium leading-none tracking-tight", className)}
-    {...props}
-  />
-))
-AlertTitle.displayName = "AlertTitle"
-
-const AlertDescription = React.forwardRef<
-  HTMLParagraphElement,
-  React.HTMLAttributes<HTMLParagraphElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn("text-sm [&_p]:leading-relaxed", className)}
-    {...props}
-  />
-))
-AlertDescription.displayName = "AlertDescription"
-
-export { Alert, AlertTitle, AlertDescription }
-=======
   <div ref={ref} role="alert" className={cn(alertVariants({ variant }), className)} {...props} />
 ))
 Alert.displayName = "Alert"
@@ -79,4 +34,3 @@ const AlertDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttrib
 AlertDescription.displayName = "AlertDescription"
 
 export { Alert, AlertDescription }
->>>>>>> c1b4b79 (Complete user authentication flows, UI, and SQL schema for Favor app)

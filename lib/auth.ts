@@ -24,8 +24,8 @@ export interface SignInData {
 }
 
 // Validation functions
-export const validateUCLAEmail = (email: string): boolean => {
-  return /^[a-zA-Z0-9._%+-]+@g\.ucla\.edu$/.test(email)
+export const validateEmail = (email: string): boolean => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 }
 
 export const validateUsername = (username: string): boolean => {
@@ -36,12 +36,19 @@ export const validatePassword = (password: string): boolean => {
   return password.length >= 8
 }
 
-// Check if username is available
+// Check if username is available - simplified version
 export const checkUsernameAvailability = async (username: string): Promise<boolean> => {
   try {
     const supabase = createClient()
 
-    console.log("Checking username availability for:", username)
+    // Test the connection first
+    const { data: testData, error: testError } = await supabase.from("user_profiles").select("count").limit(1)
+
+    // If we can't connect to the table, assume username is available
+    if (testError) {
+      console.log("Cannot check username availability, assuming available:", testError.message)
+      return true
+    }
 
     const { data, error } = await supabase
       .from("user_profiles")
@@ -49,29 +56,14 @@ export const checkUsernameAvailability = async (username: string): Promise<boole
       .eq("username", username)
       .maybeSingle()
 
-    console.log("Username check result:", { data, error })
-
-    // If there's an error, log it and handle specific cases
     if (error) {
-      console.error("Error checking username:", error)
-
-      // If the table doesn't exist or there's a permission error
-      if (error.code === "42P01" || error.code === "PGRST116") {
-        console.log("Table might not exist or no rows found, username is available")
-        return true
-      }
-
-      // For other errors, assume username is available to not block signup
+      console.log("Username check error, assuming available:", error.message)
       return true
     }
 
-    // If no data returned, username is available
-    const isAvailable = !data
-    console.log("Username available:", isAvailable)
-    return isAvailable
+    return !data
   } catch (error) {
-    console.error("Error checking username availability:", error)
-    // On any error, assume username is available to not block signup
+    console.log("Username availability check failed, assuming available:", error)
     return true
   }
 }
@@ -79,11 +71,9 @@ export const checkUsernameAvailability = async (username: string): Promise<boole
 // Sign up function
 export const signUp = async ({ email, password, username, fullName }: SignUpData) => {
   try {
-    console.log("Starting signup process for:", { email, username, fullName })
-
     // Validate inputs
-    if (!validateUCLAEmail(email)) {
-      throw new Error("Please use a valid UCLA email address (@g.ucla.edu)")
+    if (!validateEmail(email)) {
+      throw new Error("Please enter a valid email address")
     }
 
     if (!validateUsername(username)) {
@@ -94,18 +84,15 @@ export const signUp = async ({ email, password, username, fullName }: SignUpData
       throw new Error("Password must be at least 8 characters long")
     }
 
-    // Check username availability
-    const isUsernameAvailable = await checkUsernameAvailability(username)
-    console.log("Username availability check result:", isUsernameAvailable)
+    const supabase = createClient()
 
+    // Check username availability (non-blocking)
+    const isUsernameAvailable = await checkUsernameAvailability(username)
     if (!isUsernameAvailable) {
       throw new Error("Username is already taken")
     }
 
-    const supabase = createClient()
-
     // Sign up with Supabase Auth
-    console.log("Creating user with Supabase Auth...")
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -118,28 +105,20 @@ export const signUp = async ({ email, password, username, fullName }: SignUpData
     })
 
     if (error) {
-      console.error("Supabase auth signup error:", error)
-      throw error
+      throw new Error(error.message)
     }
 
-    console.log("User created successfully:", data.user?.id)
-
-    // Create user profile if user was created
+    // Try to create user profile, but don't fail if it doesn't work
     if (data.user) {
-      console.log("Creating user profile...")
-      const { error: profileError } = await supabase.from("user_profiles").insert({
-        id: data.user.id,
-        username,
-        email,
-        full_name: fullName,
-      })
-
-      if (profileError) {
-        console.error("Profile creation error:", profileError)
-        // Don't throw here as the user is already created in auth
-        // The profile can be created later if needed
-      } else {
-        console.log("User profile created successfully")
+      try {
+        await supabase.from("user_profiles").insert({
+          id: data.user.id,
+          username,
+          email,
+          full_name: fullName,
+        })
+      } catch (profileError) {
+        console.log("Profile creation failed, but user was created:", profileError)
       }
     }
 
@@ -153,8 +132,8 @@ export const signUp = async ({ email, password, username, fullName }: SignUpData
 // Sign in function
 export const signIn = async ({ email, password }: SignInData) => {
   try {
-    if (!validateUCLAEmail(email)) {
-      throw new Error("Please use a valid UCLA email address (@g.ucla.edu)")
+    if (!validateEmail(email)) {
+      throw new Error("Please enter a valid email address")
     }
 
     const supabase = createClient()
@@ -165,7 +144,7 @@ export const signIn = async ({ email, password }: SignInData) => {
     })
 
     if (error) {
-      throw error
+      throw new Error(error.message)
     }
 
     return { user: data.user, session: data.session }
@@ -182,7 +161,7 @@ export const signOut = async () => {
     const { error } = await supabase.auth.signOut()
 
     if (error) {
-      throw error
+      throw new Error(error.message)
     }
   } catch (error) {
     console.error("Signout error:", error)

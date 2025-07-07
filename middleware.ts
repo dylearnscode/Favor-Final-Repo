@@ -1,43 +1,35 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase"
+import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs"
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
 
-export async function middleware(request: NextRequest) {
-  try {
-    const supabase = createClient()
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next()
+  const supabase = createMiddlewareClient({ req, res })
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
 
-    const isAuthPage = request.nextUrl.pathname.startsWith("/auth")
-    const isProtectedPage = ["/", "/rideshare", "/exchange", "/messages", "/profile"].includes(request.nextUrl.pathname)
+  // Protected routes that require authentication
+  const protectedRoutes = ["/profile", "/messages", "/exchange", "/rideshare"]
+  const authRoutes = ["/auth/signin", "/auth/signup"]
 
-    // If user is not authenticated and trying to access protected routes
-    if (!session && isProtectedPage) {
-      return NextResponse.redirect(new URL("/auth/signin", request.url))
-    }
+  const isProtectedRoute = protectedRoutes.some((route) => req.nextUrl.pathname.startsWith(route))
+  const isAuthRoute = authRoutes.some((route) => req.nextUrl.pathname.startsWith(route))
 
-    // If user is authenticated and trying to access auth pages
-    if (session && isAuthPage) {
-      return NextResponse.redirect(new URL("/", request.url))
-    }
-
-    return NextResponse.next()
-  } catch (error) {
-    console.error("Middleware error:", error)
-    return NextResponse.next()
+  // Redirect to signin if accessing protected route without session
+  if (isProtectedRoute && !session) {
+    return NextResponse.redirect(new URL("/auth/signin", req.url))
   }
+
+  // Redirect to home if accessing auth routes with session
+  if (isAuthRoute && session) {
+    return NextResponse.redirect(new URL("/", req.url))
+  }
+
+  return res
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - api (API routes)
-     */
-    "/((?!_next/static|_next/image|favicon.ico|api).*)",
-  ],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 }
