@@ -18,4 +18,8 @@
     "hooks": "@/hooks"
   },
   "iconLibrary": "lucide"
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> c1b4b79 (Complete user authentication flows, UI, and SQL schema for Favor app)
