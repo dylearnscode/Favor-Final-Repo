@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,11 +40,6 @@ export default function PostAcademic() {
 
   const supabase = createClient()
 
-  // Check connection on component mount
-  useState(() => {
-    checkConnection()
-  })
-
   const checkConnection = async () => {
     try {
       const { data, error } = await supabase.from("academic_posts").select("count").limit(1)
@@ -53,6 +48,11 @@ export default function PostAcademic() {
       setSupabaseStatus("error")
     }
   }
+
+  // Check connection on component mount
+  useEffect(() => {
+    checkConnection()
+  }, [])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
