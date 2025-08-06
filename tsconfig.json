@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "target": "ES6",
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@components/*": ["global-interface/Components/*"],
+      "@styles/*": ["global-interface/Styles/*"],
+
+      "@academic/*": ["app/1-Academic/*"],
+      "@rideshare/*": ["app/2-Rideshare/*"],
+      "@exchange/*": ["app/3-Exchange/*"],
+      "@messages/*": ["app/4-Messages/*"],
+      "@profile/*": ["app/5-Profile/*"],
+
+      "@authroutes/*": ["app/api/authroutes/*"],
+      "@authpages/*": ["app/api/authpages/*"],
+
+      "@hooks/*": ["hooks/*"],
+      "@lib/*": ["lib/*"],
+      "@scripts/*": ["scripts/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
