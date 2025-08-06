@@ -19,8 +19,8 @@
       }
     ],
     "paths": {
-      "@components/*": ["global-interface/Components/*"],
-      "@styles/*": ["global-interface/Styles/*"],
+      "@components/*": ["Components/*"],
+      "@styles/*": ["Styles/*"],
 
       "@academic/*": ["app/1-Academic/*"],
       "@rideshare/*": ["app/2-Rideshare/*"],
