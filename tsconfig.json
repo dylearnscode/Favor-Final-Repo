@@ -19,9 +19,7 @@
       }
     ],
     "paths": {
-      "@components/*": ["Components/*"],
-      "@styles/*": ["Styles/*"],
-
+        "@/*": ["./*"]
       "@academic/*": ["app/1-Academic/*"],
       "@rideshare/*": ["app/2-Rideshare/*"],
       "@exchange/*": ["app/3-Exchange/*"],
