@@ -5,11 +5,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Car, Search, MapPin, Clock, Users, Star, ChevronUp, ChevronDown, Calendar } from "lucide-react"
+import { Car, Search, MapPin, Clock, Users, Star, ChevronUp, ChevronDown, Calendar, Plus } from "lucide-react"
 import { BottomNav } from "@/components/bottom-nav"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase"
-import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 
 interface RidePost {
@@ -126,7 +125,6 @@ const calculateSimilarity = (str1: string, str2: string): number => {
 }
 
 export default function Rideshare() {
-  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [rides, setRides] = useState<RidePost[]>(SAMPLE_RIDES)
   const [searchCriteria, setSearchCriteria] = useState<SearchCriteria>({
@@ -140,13 +138,6 @@ export default function Rideshare() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (authLoading) return
-
-    if (!user) {
-      router.push("/auth/signin")
-      return
-    }
-
     const fetchRides = async () => {
       try {
         setLoading(true)
@@ -200,7 +191,7 @@ export default function Rideshare() {
     }
 
     fetchRides()
-  }, [user, authLoading, router])
+  }, [])
 
   // Handle destination search with suggestions
   const handleDestinationChange = useCallback((value: string) => {
@@ -331,7 +322,7 @@ export default function Rideshare() {
     return `${displayHour}:${minutes} ${ampm}`
   }
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-black text-white pb-20 safe-area-inset">
         <div className="flex items-center justify-center h-screen">
@@ -343,10 +334,6 @@ export default function Rideshare() {
         <BottomNav activeTab="rideshare" />
       </div>
     )
-  }
-
-  if (!user) {
-    return null
   }
 
   return (
@@ -363,14 +350,24 @@ export default function Rideshare() {
               <p className="text-sm text-gray-400 font-medium">Find rides and share costs</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-gray-800"
-            onClick={() => setShowSearch(!showSearch)}
-          >
-            <Search className="w-6 h-6" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-gray-800"
+              onClick={() => setShowSearch(!showSearch)}
+            >
+              <Search className="w-6 h-6" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-gray-800"
+              onClick={() => router.push("/rideshare/post")}
+            >
+              <Plus className="w-6 h-6" />
+            </Button>
+          </div>
         </div>
 
         {/* Collapsible Search */}

@@ -1,6 +1,7 @@
 "use client"
+
+import { BookOpen, Car, MessageCircle, User, ShoppingBag } from "lucide-react"
 import { useRouter, usePathname } from "next/navigation"
-import { Home, Car, MessageCircle, User, ArrowLeftRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface BottomNavProps {
@@ -11,24 +12,12 @@ export function BottomNav({ activeTab }: BottomNavProps) {
   const router = useRouter()
   const pathname = usePathname()
 
-  const getActiveTab = () => {
-    if (activeTab) return activeTab
-    if (pathname === "/") return "home"
-    if (pathname.startsWith("/rideshare")) return "rideshare"
-    if (pathname.startsWith("/exchange")) return "exchange"
-    if (pathname.startsWith("/messages")) return "messages"
-    if (pathname.startsWith("/profile")) return "profile"
-    return "home"
-  }
-
-  const currentTab = getActiveTab()
-
-  const tabs = [
+  const navItems = [
     {
-      id: "home",
-      label: "Home",
-      icon: Home,
-      path: "/",
+      id: "academic",
+      label: "Academic",
+      icon: BookOpen,
+      path: "/academic",
     },
     {
       id: "rideshare",
@@ -39,7 +28,7 @@ export function BottomNav({ activeTab }: BottomNavProps) {
     {
       id: "exchange",
       label: "Exchange",
-      icon: ArrowLeftRight,
+      icon: ShoppingBag,
       path: "/exchange",
     },
     {
@@ -56,29 +45,46 @@ export function BottomNav({ activeTab }: BottomNavProps) {
     },
   ]
 
-  return (
-    <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 safe-area-pb">
-      <div className="max-w-md mx-auto">
-        <div className="flex items-center justify-around py-2">
-          {tabs.map((tab) => {
-            const Icon = tab.icon
-            const isActive = currentTab === tab.id
+  const handleNavigation = (path: string) => {
+    router.push(path)
+  }
 
-            return (
-              <button
-                key={tab.id}
-                onClick={() => router.push(tab.path)}
-                className={cn(
-                  "flex flex-col items-center justify-center p-2 rounded-lg transition-colors min-w-0 flex-1",
-                  isActive ? "text-white" : "text-gray-500 hover:text-gray-300",
-                )}
-              >
-                <Icon className={cn("w-6 h-6 mb-1", isActive && "text-white")} />
-                <span className={cn("text-xs font-medium", isActive && "text-white")}>{tab.label}</span>
-              </button>
-            )
-          })}
-        </div>
+  const getActiveTab = () => {
+    if (activeTab) return activeTab
+
+    // Determine active tab from pathname
+    if (pathname.startsWith("/academic")) return "academic"
+    if (pathname.startsWith("/rideshare")) return "rideshare"
+    if (pathname.startsWith("/exchange")) return "exchange"
+    if (pathname.startsWith("/messages")) return "messages"
+    if (pathname.startsWith("/profile")) return "profile"
+
+    return "academic"
+  }
+
+  const currentActiveTab = getActiveTab()
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-sm border-t border-gray-800 safe-area-inset-bottom z-50">
+      <div className="flex items-center justify-around py-2 px-4">
+        {navItems.map((item) => {
+          const Icon = item.icon
+          const isActive = currentActiveTab === item.id
+
+          return (
+            <button
+              key={item.id}
+              onClick={() => handleNavigation(item.path)}
+              className={cn(
+                "flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-all duration-200 min-w-0 flex-1",
+                isActive ? "bg-white text-black" : "text-gray-400 hover:text-white hover:bg-gray-800",
+              )}
+            >
+              <Icon className="w-5 h-5 mb-1" />
+              <span className="text-xs font-medium truncate">{item.label}</span>
+            </button>
+          )
+        })}
       </div>
     </div>
   )
