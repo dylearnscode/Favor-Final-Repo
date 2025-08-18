@@ -22,10 +22,17 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [username, setUsername] = useState("")
+  const [fullName, setFullName] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
   const { toast } = useToast()
+
+  // More permissive email validation
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
 
   const handleBypass = () => {
     localStorage.setItem("favor_bypass_auth", "true")
@@ -37,16 +44,38 @@ export function AuthForm({ mode }: AuthFormProps) {
     setLoading(true)
     setError("")
 
+    // Basic validation
+    if (!isValidEmail(email)) {
+      setError("Please enter a valid email address")
+      setLoading(false)
+      return
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long")
+      setLoading(false)
+      return
+    }
+
+    if (mode === "signup" && (!username || !fullName)) {
+      setError("Please fill in all required fields")
+      setLoading(false)
+      return
+    }
+
     try {
       if (mode === "signup") {
-        await signUp(email, password, username)
+        // Call signUp with all required data
+        const result = await signUp({ email, password, username, fullName })
+
         toast({
           title: "Account created successfully",
           description: "Please check your email to verify your account.",
         })
         router.push("/auth/signin")
       } else {
-        await signIn(email, password)
+        const result = await signIn({ email, password })
+
         toast({
           title: "Signed in successfully",
           description: "Welcome back!",
@@ -54,6 +83,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         router.push("/academic")
       }
     } catch (error) {
+      console.error("Auth error:", error)
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
       setLoading(false)
@@ -82,17 +112,31 @@ export function AuthForm({ mode }: AuthFormProps) {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === "signup" && (
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  type="text"
-                  placeholder="Enter your username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder="Enter your username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                  />
+                </div>
+              </>
             )}
 
             <div className="space-y-2">
@@ -100,11 +144,17 @@ export function AuthForm({ mode }: AuthFormProps) {
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
+                placeholder="Enter your email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                // Remove restrictive validation attributes
+                pattern="[^@\s]+@[^@\s]+\.[^@\s]+"
+                title="Please enter a valid email address"
               />
+              {email && !isValidEmail(email) && (
+                <p className="text-sm text-red-600">Please enter a valid email address</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -112,10 +162,11 @@ export function AuthForm({ mode }: AuthFormProps) {
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
+                placeholder="Enter your password (min 6 characters)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={6}
               />
             </div>
 
