@@ -330,7 +330,7 @@ export default function Messages() {
     }
   }, [selectedConversation, connectionStatus, profile?.id, loadMessages, supabase])
 
-  // Load conversations on mount - FIXED VERSION
+  // Load conversations on mount and handle URL params - FIXED VERSION
   useEffect(() => {
     if (authLoading || !profile) return
 
@@ -340,6 +340,16 @@ export default function Messages() {
           loadConversations(),
           new Promise((_, reject) => setTimeout(() => reject(new Error("Load timeout")), 5000)),
         ])
+        
+        // Check for conversation parameter in URL
+        const urlParams = new URLSearchParams(window.location.search)
+        const conversationParam = urlParams.get('conversation')
+        if (conversationParam) {
+          setSelectedConversation(conversationParam)
+          loadMessages(conversationParam)
+          // Clean up URL
+          window.history.replaceState({}, '', '/messages')
+        }
       } catch (error) {
         console.log("Loading timed out, using sample data")
         setConversations(SAMPLE_CONVERSATIONS)
@@ -349,7 +359,7 @@ export default function Messages() {
     }
 
     loadWithTimeout()
-  }, [loadConversations, authLoading, profile])
+  }, [loadConversations, authLoading, profile, loadMessages])
 
   // Scroll to bottom when messages change
   useEffect(() => {
