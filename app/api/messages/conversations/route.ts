@@ -1,91 +1,77 @@
-import { type NextRequest, NextResponse } from "next/server"
+// app/api/messages/conversations/route.ts
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 import { getCurrentUser } from "@/lib/auth"
 
-export async function GET() {
-  try {
-    const user = await getCurrentUser()
-    if (!user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
-    }
-
-    const supabase = createClient()
-
-    const { data: conversations, error } = await supabase
-      .from("conversations")
-      .select(`
-        id,
-        participant_1,
-        participant_2,
-        created_at,
-        last_message_at,
-        messages (
-          id,
-          content,
-          created_at,
-          sender_id
-        )
-      `)
-      .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
-      .order("last_message_at", { ascending: false })
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    return NextResponse.json({ conversations })
-  } catch (error) {
-    console.error("Error fetching conversations:", error)
-    return NextResponse.json({ error: "An error occurred fetching conversations" }, { status: 500 })
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
-    if (!user) {
+    const currentUser = await getCurrentUser()
+    
+    if (!currentUser) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
-    const { otherUserId } = await request.json()
+    const body = await request.json()
+    const { otherUserId } = body
 
     if (!otherUserId) {
-      return NextResponse.json({ error: "Other user ID is required" }, { status: 400 })
+      return NextResponse.json({ error: "otherUserId is required" }, { status: 400 })
     }
 
     const supabase = createClient()
+
+    // Get current user's profile
+    const { data: currentProfile } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('user_id', currentUser.id)
+      .single()
+
+    if (!currentProfile) {
+      return NextResponse.json({ error: "User profile not found" }, { status: 404 })
+    }
 
     // Check if conversation already exists
     const { data: existingConversation } = await supabase
-      .from("conversations")
-      .select("id")
-      .or(
-        `and(participant_1.eq.${user.id},participant_2.eq.${otherUserId}),and(participant_1.eq.${otherUserId},participant_2.eq.${user.id})`,
-      )
+      .from('conversations')
+      .select('id')
+      .or(`and(participant_1.eq.${currentProfile.id},participant_2.eq.${otherUserId}),and(participant_1.eq.${otherUserId},participant_2.eq.${currentProfile.id})`)
       .single()
 
     if (existingConversation) {
-      return NextResponse.json({ conversationId: existingConversation.id })
+      return NextResponse.json({ 
+        success: true, 
+        conversationId: existingConversation.id,
+        existing: true 
+      })
     }
 
     // Create new conversation
     const { data: newConversation, error } = await supabase
-      .from("conversations")
+      .from('conversations')
       .insert({
-        participant_1: user.id,
+        participant_1: currentProfile.id,
         participant_2: otherUserId,
-        last_message_at: new Date().toISOString(),
       })
-      .select("id")
+      .select()
       .single()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error("Error creating conversation:", error)
+      return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 })
     }
 
-    return NextResponse.json({ conversationId: newConversation.id })
+    return NextResponse.json({ 
+      success: true, 
+      conversationId: newConversation.id,
+      existing: false 
+    })
+
   } catch (error) {
-    console.error("Error creating conversation:", error)
-    return NextResponse.json({ error: "An error occurred creating conversation" }, { status: 500 })
+    console.error("Messages API error:", error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "An error occurred" },
+      { status: 500 }
+    )
   }
 }
