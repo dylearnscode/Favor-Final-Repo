@@ -33,7 +33,7 @@ export function useAuth() {
         if (session?.user) {
           // Try to fetch user profile with timeout - FIXED: use user_id instead of id
           try {
-            const profilePromise = supabase.from("user_profiles").select("*").eq("user_id", session.user.id).single()
+            const profilePromise = supabase.from("user_profiles").select("*").eq("id", session.user.id).single()
 
             const profileTimeout = new Promise((_, reject) =>
               setTimeout(() => reject(new Error("Profile timeout")), 3000),
@@ -80,7 +80,7 @@ export function useAuth() {
           const { data: profileData } = await supabase
             .from("user_profiles")
             .select("*")
-            .eq("user_id", session.user.id)
+            .eq("id", session.user.id)
             .single()
 
           if (mounted) {

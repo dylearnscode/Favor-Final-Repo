@@ -30,17 +30,28 @@ export const getUnreadMessageCount = async (userId: string) => {
   const supabase = createClient()
   
   try {
+    // First fetch conversation IDs the user participates in
+    const { data: conversations, error: convError } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(`participant_1.eq.${userId},participant_2.eq.${userId}`)
+
+    if (convError) {
+      throw convError
+    }
+
+    const conversationIds = (conversations || []).map((c: { id: string }) => c.id)
+
+    if (conversationIds.length === 0) {
+      return 0
+    }
+
     const { count } = await supabase
       .from('messages')
       .select('*', { count: 'exact', head: true })
       .neq('sender_id', userId)
       .eq('is_read', false)
-      .in('conversation_id', 
-        supabase
-          .from('conversations')
-          .select('id')
-          .or(`participant_1.eq.${userId},participant_2.eq.${userId}`)
-      )
+      .in('conversation_id', conversationIds)
     
     return count || 0
   } catch (error) {
