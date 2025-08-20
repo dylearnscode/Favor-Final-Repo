@@ -12,53 +12,101 @@ export function useAuth() {
 
   useEffect(() => {
     const supabase = createClient()
+    let mounted = true
 
-    // Get initial session
+    // Get initial session with timeout
     const getInitialSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
+      try {
+        // Set a timeout to prevent infinite loading
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Session timeout")), 5000))
 
-      if (session?.user) {
-        // Fetch user profile
-        const { data: profileData } = await supabase
-          .from("user_profiles")
-          .select("*")
-          .eq("id", session.user.id)
-          .single()
+        const sessionPromise = supabase.auth.getSession()
 
-        setProfile(profileData)
+        const {
+          data: { session },
+        } = (await Promise.race([sessionPromise, timeoutPromise])) as any
+
+        if (!mounted) return
+
+        setUser(session?.user ?? null)
+
+        if (session?.user) {
+          // Try to fetch user profile with timeout - FIXED: use user_id instead of id
+          try {
+            const profilePromise = supabase.from("user_profiles").select("*").eq("user_id", session.user.id).single()
+
+            const profileTimeout = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("Profile timeout")), 3000),
+            )
+
+            const { data: profileData } = (await Promise.race([profilePromise, profileTimeout])) as any
+
+            if (mounted) {
+              setProfile(profileData)
+            }
+          } catch (profileError) {
+            console.log("Profile fetch failed, continuing without profile:", profileError)
+            if (mounted) {
+              setProfile(null)
+            }
+          }
+        }
+      } catch (error) {
+        console.log("Session fetch failed:", error)
+        if (mounted) {
+          setUser(null)
+          setProfile(null)
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false)
+        }
       }
-
-      setLoading(false)
     }
 
     getInitialSession()
 
-    // Listen for auth changes
+    // Listen for auth changes with cleanup
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return
+
       setUser(session?.user ?? null)
 
       if (session?.user) {
-        // Fetch user profile
-        const { data: profileData } = await supabase
-          .from("user_profiles")
-          .select("*")
-          .eq("id", session.user.id)
-          .single()
+        try {
+          // FIXED: use user_id instead of id
+          const { data: profileData } = await supabase
+            .from("user_profiles")
+            .select("*")
+            .eq("user_id", session.user.id)
+            .single()
 
-        setProfile(profileData)
+          if (mounted) {
+            setProfile(profileData)
+          }
+        } catch (error) {
+          console.log("Profile fetch failed during auth change:", error)
+          if (mounted) {
+            setProfile(null)
+          }
+        }
       } else {
-        setProfile(null)
+        if (mounted) {
+          setProfile(null)
+        }
       }
 
-      setLoading(false)
+      if (mounted) {
+        setLoading(false)
+      }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   return { user, profile, loading }

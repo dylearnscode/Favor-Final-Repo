@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Send, Search, MoreVertical, Phone, Video } from "lucide-react"
 import { BottomNav } from "@/components/bottom-nav"
 import { createClient } from "@/lib/supabase"
+import { useAuth } from "@/hooks/use-auth"
 
 interface Message {
   id: string
@@ -61,15 +62,6 @@ const SAMPLE_CONVERSATIONS: Conversation[] = [
     unread_count: 1,
     is_online: true,
   },
-  {
-    id: "4",
-    other_user_name: "Alex M.",
-    other_user_avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face",
-    last_message: "The desk lamp works perfectly!",
-    last_message_time: "1d ago",
-    unread_count: 0,
-    is_online: false,
-  },
 ]
 
 // Sample messages for fallback
@@ -86,38 +78,42 @@ const SAMPLE_MESSAGES: { [key: string]: Message[] } = {
     {
       id: "2",
       conversation_id: "1",
-      sender_id: "user1",
+      sender_id: "current-user",
       content: "Yes, it's still available! Are you interested?",
       created_at: "2024-01-15T10:05:00Z",
       sender_name: "You",
     },
-    {
-      id: "3",
-      conversation_id: "1",
-      sender_id: "user2",
-      content: "Definitely! Can we meet up to see it?",
-      created_at: "2024-01-15T10:10:00Z",
-      sender_name: "Sarah K.",
-    },
   ],
-  "2": [
-    {
-      id: "4",
-      conversation_id: "2",
-      sender_id: "user2",
-      content: "Thanks for the ride to the concert yesterday!",
-      created_at: "2024-01-14T20:00:00Z",
-      sender_name: "Mike R.",
-    },
-    {
-      id: "5",
-      conversation_id: "2",
-      sender_id: "user1",
-      content: "No problem! Hope you enjoyed the show.",
-      created_at: "2024-01-14T20:05:00Z",
-      sender_name: "You",
-    },
-  ],
+}
+
+// Utility functions
+const createConversation = async (participant1Id: string, participant2Id: string, supabase: any) => {
+  try {
+    // Check if conversation already exists
+    const { data: existingConversation } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(`and(participant_1.eq.${participant1Id},participant_2.eq.${participant2Id}),and(participant_1.eq.${participant2Id},participant_2.eq.${participant1Id})`)
+      .single()
+
+    if (existingConversation) {
+      return { data: existingConversation, error: null }
+    }
+
+    // Create new conversation
+    const { data, error } = await supabase
+      .from('conversations')
+      .insert({
+        participant_1: participant1Id,
+        participant_2: participant2Id,
+      })
+      .select()
+      .single()
+
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
 }
 
 export default function Messages() {
@@ -131,59 +127,85 @@ export default function Messages() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
-  // Current user ID (in real app, get from auth)
-  const currentUserId = "user1"
+  // Use your existing auth hook
+  const { user, profile, loading: authLoading } = useAuth()
 
   // Scroll to bottom of messages
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [])
 
-  // Load conversations
+  // Load conversations - FIXED VERSION
   const loadConversations = useCallback(async () => {
+    if (!profile?.id) {
+      console.log("No profile ID available")
+      return
+    }
+
     try {
       const { data, error } = await supabase
         .from("conversations")
         .select(`
           id,
           created_at,
-          conversation_members!inner(
-            user_id,
-            users(username, avatar_url)
-          ),
+          participant_1,
+          participant_2,
+          last_message_at,
           messages(
             content,
             created_at,
             sender_id
           )
         `)
-        .eq("conversation_members.user_id", currentUserId)
-        .order("created_at", { ascending: false })
+        .or(`participant_1.eq.${profile.id},participant_2.eq.${profile.id}`)
+        .order("last_message_at", { ascending: false })
 
       if (error) {
-        console.log("Database not connected, using sample data")
+        console.log("Database error:", error)
         setConversations(SAMPLE_CONVERSATIONS)
         setConnectionStatus("sample")
-      } else {
-        // Transform data to match our interface
-        const transformedConversations: Conversation[] = (data || []).map((conv: any) => {
-          const otherMember = conv.conversation_members.find((member: any) => member.user_id !== currentUserId)
-          const lastMessage = conv.messages[0]
-
-          return {
-            id: conv.id,
-            other_user_name: otherMember?.users?.username || "Unknown User",
-            other_user_avatar: otherMember?.users?.avatar_url,
-            last_message: lastMessage?.content || "No messages yet",
-            last_message_time: lastMessage ? new Date(lastMessage.created_at).toLocaleTimeString() : "",
-            unread_count: 0, // TODO: Calculate unread count
-            is_online: Math.random() > 0.5, // TODO: Implement real online status
-          }
-        })
-
-        setConversations(transformedConversations)
-        setConnectionStatus("connected")
+        return
       }
+
+      // Get other participants' profiles
+      const userIds = data?.map(conv => 
+        conv.participant_1 === profile.id ? conv.participant_2 : conv.participant_1
+      ).filter(Boolean) || []
+
+      if (userIds.length === 0) {
+        setConversations([])
+        setConnectionStatus("connected")
+        return
+      }
+
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('id, username, avatar_url')
+        .in('id', userIds)
+
+      const profilesMap = profiles?.reduce((acc, profileData) => {
+        acc[profileData.id] = profileData
+        return acc
+      }, {} as any) || {}
+
+      const transformedConversations: Conversation[] = (data || []).map((conv: any) => {
+        const otherUserId = conv.participant_1 === profile.id ? conv.participant_2 : conv.participant_1
+        const otherUser = profilesMap[otherUserId]
+        const lastMessage = conv.messages?.[0]
+
+        return {
+          id: conv.id,
+          other_user_name: otherUser?.username || "Unknown User",
+          other_user_avatar: otherUser?.avatar_url,
+          last_message: lastMessage?.content || "No messages yet",
+          last_message_time: lastMessage ? new Date(lastMessage.created_at).toLocaleTimeString() : "",
+          unread_count: 0, // TODO: Calculate unread count
+          is_online: Math.random() > 0.5, // TODO: Implement real online status
+        }
+      })
+
+      setConversations(transformedConversations)
+      setConnectionStatus("connected")
     } catch (error) {
       console.error("Error loading conversations:", error)
       setConversations(SAMPLE_CONVERSATIONS)
@@ -191,9 +213,9 @@ export default function Messages() {
     } finally {
       setLoading(false)
     }
-  }, [currentUserId])
+  }, [profile?.id, supabase])
 
-  // Load messages for a conversation
+  // Load messages for a conversation - FIXED VERSION
   const loadMessages = useCallback(
     async (conversationId: string) => {
       try {
@@ -210,7 +232,7 @@ export default function Messages() {
             sender_id,
             content,
             created_at,
-            users(username, avatar_url)
+            user_profiles!sender_id(username, avatar_url)
           `)
           .eq("conversation_id", conversationId)
           .order("created_at", { ascending: true })
@@ -225,8 +247,8 @@ export default function Messages() {
             sender_id: msg.sender_id,
             content: msg.content,
             created_at: msg.created_at,
-            sender_name: msg.users?.username || "Unknown",
-            sender_avatar: msg.users?.avatar_url,
+            sender_name: msg.user_profiles?.username || "Unknown",
+            sender_avatar: msg.user_profiles?.avatar_url,
           }))
 
           setMessages(transformedMessages)
@@ -236,18 +258,18 @@ export default function Messages() {
         setMessages(SAMPLE_MESSAGES[conversationId] || [])
       }
     },
-    [connectionStatus],
+    [connectionStatus, supabase],
   )
 
-  // Send message
+  // Send message - FIXED VERSION
   const sendMessage = useCallback(
     async (content: string) => {
-      if (!content.trim() || !selectedConversation) return
+      if (!content.trim() || !selectedConversation || !profile?.id) return
 
       const tempMessage: Message = {
         id: `temp-${Date.now()}`,
         conversation_id: selectedConversation,
-        sender_id: currentUserId,
+        sender_id: profile.id,
         content: content.trim(),
         created_at: new Date().toISOString(),
         sender_name: "You",
@@ -261,31 +283,28 @@ export default function Messages() {
         if (connectionStatus === "connected") {
           const { data, error } = await supabase.from("messages").insert({
             conversation_id: selectedConversation,
-            sender_id: currentUserId,
+            sender_id: profile.id,
             content: content.trim(),
           })
 
           if (error) {
             console.error("Error sending message:", error)
-            // Remove optimistic message on error
             setMessages((prev) => prev.filter((msg) => msg.id !== tempMessage.id))
           } else {
-            // Replace temp message with real one
             loadMessages(selectedConversation)
           }
         }
       } catch (error) {
         console.error("Error sending message:", error)
-        // Remove optimistic message on error
         setMessages((prev) => prev.filter((msg) => msg.id !== tempMessage.id))
       }
     },
-    [selectedConversation, currentUserId, connectionStatus, loadMessages],
+    [selectedConversation, profile?.id, connectionStatus, loadMessages, supabase],
   )
 
-  // Set up realtime subscription
+  // Set up realtime subscription - FIXED VERSION
   useEffect(() => {
-    if (connectionStatus !== "connected" || !selectedConversation) return
+    if (connectionStatus !== "connected" || !selectedConversation || !profile?.id) return
 
     const channel = supabase
       .channel(`conversation-${selectedConversation}`)
@@ -299,7 +318,7 @@ export default function Messages() {
         },
         (payload) => {
           const newMessage = payload.new as any
-          if (newMessage.sender_id !== currentUserId) {
+          if (newMessage.sender_id !== profile.id) {
             loadMessages(selectedConversation)
           }
         },
@@ -309,12 +328,38 @@ export default function Messages() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [selectedConversation, connectionStatus, currentUserId, loadMessages])
+  }, [selectedConversation, connectionStatus, profile?.id, loadMessages, supabase])
 
-  // Load conversations on mount
+  // Load conversations on mount and handle URL params - FIXED VERSION
   useEffect(() => {
-    loadConversations()
-  }, [loadConversations])
+    if (authLoading || !profile) return
+
+    const loadWithTimeout = async () => {
+      try {
+        await Promise.race([
+          loadConversations(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Load timeout")), 5000)),
+        ])
+        
+        // Check for conversation parameter in URL
+        const urlParams = new URLSearchParams(window.location.search)
+        const conversationParam = urlParams.get('conversation')
+        if (conversationParam) {
+          setSelectedConversation(conversationParam)
+          loadMessages(conversationParam)
+          // Clean up URL
+          window.history.replaceState({}, '', '/messages')
+        }
+      } catch (error) {
+        console.log("Loading timed out, using sample data")
+        setConversations(SAMPLE_CONVERSATIONS)
+        setConnectionStatus("sample")
+        setLoading(false)
+      }
+    }
+
+    loadWithTimeout()
+  }, [loadConversations, authLoading, profile, loadMessages])
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -344,13 +389,29 @@ export default function Messages() {
     conv.other_user_name.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  if (loading) {
+  // Show loading if auth is still loading
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-black text-white pb-20 safe-area-inset">
         <div className="flex items-center justify-center h-screen">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
             <p className="text-gray-400">Loading messages...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show auth required message if no user
+  if (!user || !profile) {
+    return (
+      <div className="min-h-screen bg-black text-white pb-20 safe-area-inset">
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center">
+            <div className="text-6xl mb-4">🔒</div>
+            <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
+            <p className="text-gray-400">Please sign in to access your messages.</p>
           </div>
         </div>
       </div>
@@ -410,15 +471,7 @@ export default function Messages() {
                       <div className="flex items-center gap-3">
                         <div className="relative">
                           <Avatar className="w-12 h-12">
-                            <AvatarImage
-                              src={conversation.other_user_avatar || "/placeholder.svg"}
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement
-                                const userName =
-                                  conversations.find((c) => c.id === selectedConversation)?.other_user_name || "User"
-                                target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=374151&color=ffffff&size=48`
-                              }}
-                            />
+                            <AvatarImage src={conversation.other_user_avatar || "/placeholder.svg"} />
                             <AvatarFallback className="bg-gray-700 text-white font-bold">
                               {conversation.other_user_name.charAt(0)}
                             </AvatarFallback>
@@ -471,17 +524,7 @@ export default function Messages() {
                   <div className="relative">
                     <Avatar className="w-10 h-10">
                       <AvatarImage
-                        src={
-                          conversations.find((c) => c.id === selectedConversation)?.other_user_avatar ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg"
-                        }
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement
-                          const userName =
-                            conversations.find((c) => c.id === selectedConversation)?.other_user_name || "User"
-                          target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=374151&color=ffffff&size=40`
-                        }}
+                        src={conversations.find((c) => c.id === selectedConversation)?.other_user_avatar || "/placeholder.svg"}
                       />
                       <AvatarFallback className="bg-gray-700 text-white font-bold">
                         {conversations.find((c) => c.id === selectedConversation)?.other_user_name?.charAt(0) || "U"}
@@ -518,7 +561,7 @@ export default function Messages() {
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.map((message) => {
-              const isOwnMessage = message.sender_id === currentUserId
+              const isOwnMessage = message.sender_id === profile.id
               return (
                 <div key={message.id} className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-xs lg:max-w-md ${isOwnMessage ? "order-2" : "order-1"}`}>

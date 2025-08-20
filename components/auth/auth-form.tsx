@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, Mail, Lock, User, AlertCircle } from "lucide-react"
+import { Loader2 } from "lucide-react"
+import { signIn, signUp } from "@/lib/auth"
+import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
 interface AuthFormProps {
@@ -17,211 +19,184 @@ interface AuthFormProps {
 }
 
 export function AuthForm({ mode }: AuthFormProps) {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    fullName: "",
-  })
-  const [showPassword, setShowPassword] = useState(false)
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [username, setUsername] = useState("")
+  const [fullName, setFullName] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
+  const { toast } = useToast()
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
-    // Clear error when user starts typing
-    if (error) setError("")
+  // More permissive email validation
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
   }
 
-  const validateForm = () => {
-    if (!formData.email || !formData.password) {
-      setError("Please fill in all required fields")
-      return false
-    }
-
-    if (mode === "signup" && !formData.fullName) {
-      setError("Please enter your full name")
-      return false
-    }
-
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters long")
-      return false
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(formData.email)) {
-      setError("Please enter a valid email address")
-      return false
-    }
-
-    return true
+  const handleBypass = () => {
+    localStorage.setItem("favor_bypass_auth", "true")
+    router.push("/academic")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!validateForm()) return
-
     setLoading(true)
     setError("")
 
+    // Basic validation
+    if (!isValidEmail(email)) {
+      setError("Please enter a valid email address")
+      setLoading(false)
+      return
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long")
+      setLoading(false)
+      return
+    }
+
+    if (mode === "signup" && (!username || !fullName)) {
+      setError("Please fill in all required fields")
+      setLoading(false)
+      return
+    }
+
     try {
-      const endpoint = mode === "signin" ? "/api/auth/signin" : "/api/auth/signup"
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      })
+      if (mode === "signup") {
+        // Call signUp with all required data
+        const result = await signUp({ email, password, username, fullName })
 
-      const data = await response.json()
+        toast({
+          title: "Account created successfully",
+          description: "Please check your email to verify your account.",
+        })
+        router.push("/auth/signin")
+      } else {
+        const result = await signIn({ email, password })
 
-      if (!response.ok) {
-        throw new Error(data.error || `Failed to ${mode === "signin" ? "sign in" : "sign up"}`)
+        toast({
+          title: "Signed in successfully",
+          description: "Welcome back!",
+        })
+        router.push("/academic")
       }
-
-      // Success - redirect to home page
-      router.push("/")
-      router.refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred")
+    } catch (error) {
+      console.error("Auth error:", error)
+      setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
       setLoading(false)
     }
   }
 
-  const isSignIn = mode === "signin"
-
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-gray-900 border-gray-800">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center text-white">
-            {isSignIn ? "Welcome back" : "Create account"}
+          <CardTitle className="text-2xl font-bold text-center">
+            {mode === "signin" ? "Sign in to Favor" : "Create your account"}
           </CardTitle>
-          <CardDescription className="text-center text-gray-400">
-            {isSignIn ? "Sign in to your Favor account" : "Join Favor to connect with your community"}
+          <CardDescription className="text-center">
+            {mode === "signin"
+              ? "Enter your email and password to access your account"
+              : "Enter your details to create a new account"}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Full Name - Only for signup */}
-            {!isSignIn && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName" className="text-white font-medium">
-                  Full Name *
-                </Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            {mode === "signup" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
                   <Input
                     id="fullName"
                     type="text"
                     placeholder="Enter your full name"
-                    value={formData.fullName}
-                    onChange={(e) => handleInputChange("fullName", e.target.value)}
-                    className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 pl-10"
-                    required={!isSignIn}
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    required
                   />
                 </div>
-              </div>
-            )}
 
-            {/* Email */}
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-white font-medium">
-                Email *
-              </Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange("email", e.target.value)}
-                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 pl-10"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-white font-medium">
-                Password *
-              </Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange("password", e.target.value)}
-                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 pl-10 pr-10"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              {!isSignIn && <p className="text-xs text-gray-400">Password must be at least 6 characters long</p>}
-            </div>
-
-            {/* Error Alert */}
-            {error && (
-              <Alert className="border-red-800 bg-red-900/20">
-                <AlertCircle className="h-4 w-4 text-red-400" />
-                <AlertDescription className="text-red-300">{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              className="w-full bg-white text-black hover:bg-gray-200 font-bold h-12"
-              disabled={loading}
-            >
-              {loading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                  {isSignIn ? "Signing in..." : "Creating account..."}
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder="Enter your username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                  />
                 </div>
-              ) : isSignIn ? (
-                "Sign In"
-              ) : (
-                "Create Account"
-              )}
-            </Button>
+              </>
+            )}
 
-            {/* Toggle Link */}
-            <div className="text-center text-sm text-gray-400">
-              {isSignIn ? (
-                <>
-                  Don't have an account?{" "}
-                  <Link href="/auth/signup" className="text-white hover:underline font-medium">
-                    Sign up
-                  </Link>
-                </>
-              ) : (
-                <>
-                  Already have an account?{" "}
-                  <Link href="/auth/signin" className="text-white hover:underline font-medium">
-                    Sign in
-                  </Link>
-                </>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter your email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                // Remove restrictive validation attributes
+                pattern="[^@\s]+@[^@\s]+\.[^@\s]+"
+                title="Please enter a valid email address"
+              />
+              {email && !isValidEmail(email) && (
+                <p className="text-sm text-red-600">Please enter a valid email address</p>
               )}
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter your password (min 6 characters)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {mode === "signin" ? "Sign In" : "Sign Up"}
+            </Button>
           </form>
+
+          <Button type="button" variant="outline" className="w-full bg-transparent" onClick={handleBypass}>
+            Bypass Authentication
+          </Button>
+
+          <div className="text-center text-sm">
+            {mode === "signin" ? (
+              <>
+                Don't have an account?{" "}
+                <Link href="/auth/signup" className="font-medium text-primary hover:underline">
+                  Sign up
+                </Link>
+              </>
+            ) : (
+              <>
+                Already have an account?{" "}
+                <Link href="/auth/signin" className="font-medium text-primary hover:underline">
+                  Sign in
+                </Link>
+              </>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

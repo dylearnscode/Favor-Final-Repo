@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+
 import { useEffect, useState, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -124,7 +125,6 @@ const supabase = createClient()
 
 export default function Academic() {
   const router = useRouter()
-  const [hasAuth, setHasAuth] = useState(false)
   const [loading, setLoading] = useState(true)
   const [selectedDepartment, setSelectedDepartment] = useState("All Departments")
   const [selectedCourse, setSelectedCourse] = useState("All Courses")
@@ -132,18 +132,63 @@ export default function Academic() {
   const [academicPosts, setAcademicPosts] = useState<AcademicPost[]>([])
 
   useEffect(() => {
-    // Check if user has bypassed auth or is authenticated
-    const bypassAuth = localStorage.getItem("favor_bypass_auth") === "true"
+    // Simplified auth check with timeout
+    const checkAuth = () => {
+      try {
+        const bypassAuth = localStorage.getItem("favor_bypass_auth") === "true"
 
-    if (bypassAuth) {
-      setHasAuth(true)
-      setLoading(false)
-    } else {
-      // Check for actual authentication (you can implement this later)
-      // For now, redirect to auth if no bypass
-      router.push("/auth/signin")
+        if (bypassAuth) {
+          // Load data immediately if bypassed
+          loadAcademicPosts()
+        } else {
+          // Redirect to auth if no bypass
+          router.push("/auth/signin")
+          return
+        }
+      } catch (error) {
+        console.error("Auth check failed:", error)
+        // Fallback to loading sample data
+        setAcademicPosts(SAMPLE_ACADEMIC_POSTS)
+        setLoading(false)
+      }
     }
+
+    // Add a small delay to prevent flash
+    const timer = setTimeout(checkAuth, 100)
+    return () => clearTimeout(timer)
   }, [router])
+
+  // Optimize database loading with useCallback and timeout
+  const loadAcademicPosts = useCallback(async () => {
+    try {
+      setLoading(true)
+
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Database timeout")), 5000))
+
+      // Create the database query promise
+      const queryPromise = supabase
+        .from("academic_posts")
+        .select("id, department, course, title, resource, pdf_url, uploaded_by, upload_date, popularity")
+        .order("popularity", { ascending: false })
+        .limit(50) // Add limit for performance
+
+      // Race the promises
+      const { data, error } = (await Promise.race([queryPromise, timeoutPromise])) as any
+
+      if (error) {
+        console.log("Database query failed, using sample data:", error)
+        setAcademicPosts(SAMPLE_ACADEMIC_POSTS)
+      } else {
+        setAcademicPosts(data || SAMPLE_ACADEMIC_POSTS)
+      }
+    } catch (error) {
+      console.error("Error loading academic posts:", error)
+      setAcademicPosts(SAMPLE_ACADEMIC_POSTS)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   // Memoize expensive calculations
   const filteredPosts = useMemo(() => {
@@ -183,39 +228,6 @@ export default function Academic() {
 
   const postsToShow = isSearching ? filteredPosts : academicPosts
 
-  // Optimize database loading with useCallback
-  const loadAcademicPosts = useCallback(async () => {
-    try {
-      setLoading(true)
-
-      // Optimize query - only select needed fields and limit results
-      const { data, error } = await supabase
-        .from("academic_posts")
-        .select("id, department, course, title, resource, pdf_url, uploaded_by, upload_date, popularity")
-        .order("popularity", { ascending: false })
-        .limit(100) // Limit initial load for performance
-
-      if (error) {
-        console.log("Database not connected, using sample data")
-        setAcademicPosts(SAMPLE_ACADEMIC_POSTS)
-      } else {
-        setAcademicPosts(data || [])
-      }
-    } catch (error) {
-      console.error("Error loading academic posts:", error)
-      setAcademicPosts(SAMPLE_ACADEMIC_POSTS)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  // Load posts only once on mount
-  useEffect(() => {
-    if (hasAuth) {
-      loadAcademicPosts()
-    }
-  }, [loadAcademicPosts, hasAuth])
-
   // Optimize event handlers with useCallback
   const handleDepartmentChange = useCallback((department: string) => {
     setSelectedDepartment(department)
@@ -245,10 +257,6 @@ export default function Academic() {
         </div>
       </div>
     )
-  }
-
-  if (!hasAuth) {
-    return null
   }
 
   return (

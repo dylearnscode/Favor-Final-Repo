@@ -5,11 +5,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Car, Search, MapPin, Clock, Users, Star, ChevronUp, ChevronDown, Calendar } from "lucide-react"
+import { Car, Search, MapPin, Clock, Users, Star, ChevronUp, ChevronDown, Calendar, Plus } from "lucide-react"
 import { BottomNav } from "@/components/bottom-nav"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { createClient } from "@/lib/supabase"
-import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 
 interface RidePost {
@@ -126,7 +125,6 @@ const calculateSimilarity = (str1: string, str2: string): number => {
 }
 
 export default function Rideshare() {
-  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [rides, setRides] = useState<RidePost[]>(SAMPLE_RIDES)
   const [searchCriteria, setSearchCriteria] = useState<SearchCriteria>({
@@ -140,54 +138,62 @@ export default function Rideshare() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (authLoading) return
-
-    if (!user) {
-      router.push("/auth/signin")
-      return
-    }
-
     const fetchRides = async () => {
       try {
         setLoading(true)
         const supabase = createClient()
 
-        // Try to fetch from database, but handle gracefully if table doesn't exist
-        const { data, error } = await supabase
+        // Add timeout to prevent infinite loading
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Database timeout")), 5000))
+
+        const queryPromise = supabase
           .from("rideshare_posts")
           .select(`
-            *,
+            id,
+            title,
+            from_location,
+            to_location,
+            departure_time,
+            available_seats,
+            price_per_person,
+            created_at,
             user_profiles!rideshare_posts_user_id_fkey (
               username,
               avatar_url
             )
           `)
           .order("created_at", { ascending: false })
-          .limit(20)
+          .limit(20) // Add limit for performance
 
-        if (error) {
-          console.error("Error fetching rides:", error)
-          // Use sample data if database query fails
-          setRides(SAMPLE_RIDES)
-        } else if (data && data.length > 0) {
-          // Transform database data to match our interface
-          const transformedRides = data.map((ride: any) => ({
-            id: ride.id,
-            title: ride.title || "Untitled Ride",
-            from_location: ride.from_location || "Unknown",
-            to_location: ride.to_location || ride.destination || "Unknown",
-            departure_time: ride.departure_time || ride.datetime || new Date().toISOString(),
-            available_seats: ride.available_seats || ride.max_participants || 1,
-            price_per_person: ride.price_per_person || "$0",
-            user_name: ride.user_profiles?.username || "Unknown User",
-            user_avatar: ride.user_profiles?.avatar_url || "",
-            user_rating: 4.5, // Default rating
-            created_at: ride.created_at,
-            coordinates: ride.coordinates,
-          }))
-          setRides(transformedRides)
-        } else {
-          // No data in database, use sample data
+        try {
+          const { data, error } = (await Promise.race([queryPromise, timeoutPromise])) as any
+
+          if (error) {
+            console.error("Error fetching rides:", error)
+            setRides(SAMPLE_RIDES)
+          } else if (data && data.length > 0) {
+            // Transform database data to match our interface
+            const transformedRides = data.map((ride: any) => ({
+              id: ride.id,
+              title: ride.title || "Untitled Ride",
+              from_location: ride.from_location || "Unknown",
+              to_location: ride.to_location || ride.destination || "Unknown",
+              departure_time: ride.departure_time || ride.datetime || new Date().toISOString(),
+              available_seats: ride.available_seats || ride.max_participants || 1,
+              price_per_person: ride.price_per_person || "$0",
+              user_name: ride.user_profiles?.username || "Unknown User",
+              user_avatar: ride.user_profiles?.avatar_url || "",
+              user_rating: 4.5, // Default rating
+              created_at: ride.created_at,
+              coordinates: ride.coordinates,
+            }))
+            setRides(transformedRides)
+          } else {
+            // No data in database, use sample data
+            setRides(SAMPLE_RIDES)
+          }
+        } catch (timeoutError) {
+          console.log("Database query timed out, using sample data")
           setRides(SAMPLE_RIDES)
         }
       } catch (error) {
@@ -200,7 +206,7 @@ export default function Rideshare() {
     }
 
     fetchRides()
-  }, [user, authLoading, router])
+  }, [])
 
   // Handle destination search with suggestions
   const handleDestinationChange = useCallback((value: string) => {
@@ -331,7 +337,7 @@ export default function Rideshare() {
     return `${displayHour}:${minutes} ${ampm}`
   }
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-black text-white pb-20 safe-area-inset">
         <div className="flex items-center justify-center h-screen">
@@ -343,10 +349,6 @@ export default function Rideshare() {
         <BottomNav activeTab="rideshare" />
       </div>
     )
-  }
-
-  if (!user) {
-    return null
   }
 
   return (
@@ -363,14 +365,24 @@ export default function Rideshare() {
               <p className="text-sm text-gray-400 font-medium">Find rides and share costs</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-gray-800"
-            onClick={() => setShowSearch(!showSearch)}
-          >
-            <Search className="w-6 h-6" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-gray-800"
+              onClick={() => setShowSearch(!showSearch)}
+            >
+              <Search className="w-6 h-6" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-gray-800"
+              onClick={() => router.push("/rideshare/post")}
+            >
+              <Plus className="w-6 h-6" />
+            </Button>
+          </div>
         </div>
 
         {/* Collapsible Search */}

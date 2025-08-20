@@ -4,7 +4,7 @@ export default function Loading() {
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading messages...</p>
+          <p className="text-gray-400">Loading academic materials...</p>
         </div>
       </div>
     </div>
