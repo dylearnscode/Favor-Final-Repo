@@ -390,7 +390,7 @@ export default function Messages() {
   )
 
   // Show loading if auth is still loading
-  if (authLoading || loading) {
+  if (authLoading || (profile && loading)) {
     return (
       <div className="min-h-screen bg-black text-white pb-20 safe-area-inset">
         <div className="flex items-center justify-center h-screen">
