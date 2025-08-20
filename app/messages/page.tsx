@@ -91,11 +91,9 @@ const createConversation = async (participant1Id: string, participant2Id: string
   try {
     // Check if conversation already exists
     const { data: existingConversation } = await supabase
-      .from("conversations")
-      .select("id")
-      .or(
-        `and(participant_1.eq.${participant1Id},participant_2.eq.${participant2Id}),and(participant_1.eq.${participant2Id},participant_2.eq.${participant1Id})`,
-      )
+      .from('conversations')
+      .select('id')
+      .or(`and(participant_1.eq.${participant1Id},participant_2.eq.${participant2Id}),and(participant_1.eq.${participant2Id},participant_2.eq.${participant1Id})`)
       .single()
 
     if (existingConversation) {
@@ -104,7 +102,7 @@ const createConversation = async (participant1Id: string, participant2Id: string
 
     // Create new conversation
     const { data, error } = await supabase
-      .from("conversations")
+      .from('conversations')
       .insert({
         participant_1: participant1Id,
         participant_2: participant2Id,
@@ -170,10 +168,9 @@ export default function Messages() {
       }
 
       // Get other participants' profiles
-      const userIds =
-        data
-          ?.map((conv) => (conv.participant_1 === profile.id ? conv.participant_2 : conv.participant_1))
-          .filter(Boolean) || []
+      const userIds = data?.map(conv => 
+        conv.participant_1 === profile.id ? conv.participant_2 : conv.participant_1
+      ).filter(Boolean) || []
 
       if (userIds.length === 0) {
         setConversations([])
@@ -182,15 +179,14 @@ export default function Messages() {
       }
 
       const { data: profiles } = await supabase
-        .from("user_profiles")
-        .select("id, username, avatar_url")
-        .in("id", userIds)
+        .from('user_profiles')
+        .select('id, username, avatar_url')
+        .in('id', userIds)
 
-      const profilesMap =
-        profiles?.reduce((acc, profileData) => {
-          acc[profileData.id] = profileData
-          return acc
-        }, {} as any) || {}
+      const profilesMap = profiles?.reduce((acc, profileData) => {
+        acc[profileData.id] = profileData
+        return acc
+      }, {} as any) || {}
 
       const transformedConversations: Conversation[] = (data || []).map((conv: any) => {
         const otherUserId = conv.participant_1 === profile.id ? conv.participant_2 : conv.participant_1
@@ -334,7 +330,7 @@ export default function Messages() {
     }
   }, [selectedConversation, connectionStatus, profile?.id, loadMessages, supabase])
 
-  // Load conversations on mount and handle URL params - FIXED VERSION
+  // Load conversations on mount - FIXED VERSION
   useEffect(() => {
     if (authLoading || !profile) return
 
@@ -344,16 +340,6 @@ export default function Messages() {
           loadConversations(),
           new Promise((_, reject) => setTimeout(() => reject(new Error("Load timeout")), 5000)),
         ])
-
-        // Check for conversation parameter in URL
-        const urlParams = new URLSearchParams(window.location.search)
-        const conversationParam = urlParams.get("conversation")
-        if (conversationParam) {
-          setSelectedConversation(conversationParam)
-          loadMessages(conversationParam)
-          // Clean up URL
-          window.history.replaceState({}, "", "/messages")
-        }
       } catch (error) {
         console.log("Loading timed out, using sample data")
         setConversations(SAMPLE_CONVERSATIONS)
@@ -363,7 +349,7 @@ export default function Messages() {
     }
 
     loadWithTimeout()
-  }, [loadConversations, authLoading, profile, loadMessages])
+  }, [loadConversations, authLoading, profile])
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -394,7 +380,7 @@ export default function Messages() {
   )
 
   // Show loading if auth is still loading
-  if (authLoading || (profile && loading)) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-black text-white pb-20 safe-area-inset">
         <div className="flex items-center justify-center h-screen">
@@ -528,10 +514,7 @@ export default function Messages() {
                   <div className="relative">
                     <Avatar className="w-10 h-10">
                       <AvatarImage
-                        src={
-                          conversations.find((c) => c.id === selectedConversation)?.other_user_avatar ||
-                          "/placeholder.svg"
-                        }
+                        src={conversations.find((c) => c.id === selectedConversation)?.other_user_avatar || "/placeholder.svg"}
                       />
                       <AvatarFallback className="bg-gray-700 text-white font-bold">
                         {conversations.find((c) => c.id === selectedConversation)?.other_user_name?.charAt(0) || "U"}
