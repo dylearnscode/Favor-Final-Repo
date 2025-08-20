@@ -1,4 +1,4 @@
-export default function Loading() {
+export default function ProfileLoading() {
   return (
     <div className="min-h-screen bg-black text-white pb-20">
       <div className="flex items-center justify-center h-screen">

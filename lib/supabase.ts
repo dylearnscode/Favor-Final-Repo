@@ -124,6 +124,56 @@ export type Database = {
           file_type?: string | null
         }
       }
+      conversations: {
+        Row: {
+          id: string
+          participant_1: string
+          participant_2: string
+          created_at: string
+          last_message_at: string
+        }
+        Insert: {
+          id?: string
+          participant_1: string
+          participant_2: string
+          created_at?: string
+          last_message_at?: string
+        }
+        Update: {
+          id?: string
+          participant_1?: string
+          participant_2?: string
+          last_message_at?: string
+        }
+      }
+      messages: {
+        Row: {
+          id: string
+          conversation_id: string
+          sender_id: string
+          content: string
+          created_at: string
+          is_read: boolean
+          read_at: string | null
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          sender_id: string
+          content: string
+          created_at?: string
+          is_read?: boolean
+          read_at?: string | null
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          sender_id?: string
+          content?: string
+          is_read?: boolean
+          read_at?: string | null
+        }
+      }
     }
   }
 }
