@@ -129,44 +129,44 @@ export default function Exchange() {
       <div className="px-4 py-4">
         <div className="flex justify-between items-center">
           <div className="flex flex-col items-center">
-            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-2 overflow-hidden">
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-2 p-2">
               <img
                 src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/521_REpWIE1BUiAwMjMtMjc.jpg-gkjNPhs7XOlhPfkji6OpY8tshQ1vPr.jpeg"
                 alt="Concert"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain rounded-full"
               />
             </div>
             <span className="text-xs font-medium text-gray-300">Concert Tickets</span>
           </div>
 
           <div className="flex flex-col items-center">
-            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-2 overflow-hidden">
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-2 p-2">
               <img
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot%202025-09-07%20at%2012.33.24%E2%80%AFAM-lFxdjsY4qAG7mwSEybmdeU7MDkRVr4.png"
+                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-lUz4mv0eL0DHh3LUSF5ugEyFAyferD.png"
                 alt="Dorm Appliances"
-                className="w-12 h-8 object-contain"
+                className="w-full h-full object-contain"
               />
             </div>
             <span className="text-xs font-medium text-gray-300">Dorm Appliances</span>
           </div>
 
           <div className="flex flex-col items-center">
-            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-2 overflow-hidden">
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-2 p-2">
               <img
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot%202025-09-07%20at%2012.34.03%E2%80%AFAM-dfEXio5yRYUwICXCeG5TxXwRiYlvLm.png"
+                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-YaEScVT1iz8dnYlshrOfBrOns0CBNP.png"
                 alt="Preprofessional Help"
-                className="w-12 h-9 object-contain"
+                className="w-full h-full object-contain"
               />
             </div>
             <span className="text-xs font-medium text-gray-300">Preprofessional Help</span>
           </div>
 
           <div className="flex flex-col items-center">
-            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-2 overflow-hidden">
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-2 p-2">
               <img
                 src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot%202025-09-07%20at%2012.32.26%E2%80%AFAM-DlU56pc3JqTn4aHB537AXEy28JrMXZ.png"
                 alt="Food Truck Waiter"
-                className="w-12 h-9 object-contain"
+                className="w-full h-full object-contain"
               />
             </div>
             <span className="text-xs font-medium text-gray-300">Food Truck Waiter</span>
