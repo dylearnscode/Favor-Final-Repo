@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Search, Plus, Star } from "lucide-react"
-import { BottomNav } from "@/components/bottom-nav"
+import BottomNav from "@/components/bottom-nav"
 import { useRouter } from "next/navigation"
 
 interface ServiceItem {

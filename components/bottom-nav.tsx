@@ -12,7 +12,7 @@ interface BottomNavProps {
   activeTab?: "academic" | "rideshare" | "exchange" | "messages" | "profile"
 }
 
-export function BottomNav({ activeTab }: BottomNavProps) {
+const BottomNav = ({ activeTab }: BottomNavProps) => {
   const pathname = usePathname()
   const router = useRouter()
   const { user, profile } = useAuth()
@@ -104,3 +104,5 @@ export function BottomNav({ activeTab }: BottomNavProps) {
     </div>
   )
 }
+
+export default BottomNav
