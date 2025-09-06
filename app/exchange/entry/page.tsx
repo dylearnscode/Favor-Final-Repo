@@ -2,58 +2,44 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { motion } from "framer-motion"
 import SplitText from "@/components/split-text"
 
 export default function ExchangeEntry() {
   const [showSubtitle, setShowSubtitle] = useState(false)
-  const [showLoading, setShowLoading] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
     // Show subtitle after main title animation starts
     const subtitleTimer = setTimeout(() => {
       setShowSubtitle(true)
-    }, 800)
-
-    // Show loading screen if page takes too long to load
-    const loadingTimer = setTimeout(() => {
-      setShowLoading(true)
-    }, 3000)
+    }, 400)
 
     // Navigate to main exchange page after animations
     const navigationTimer = setTimeout(() => {
-      router.push("/exchange")
-    }, 2500)
+      router.replace("/exchange/main")
+    }, 1500)
 
     return () => {
       clearTimeout(subtitleTimer)
-      clearTimeout(loadingTimer)
       clearTimeout(navigationTimer)
     }
   }, [router])
 
-  if (showLoading) {
-    return (
-      <div className="min-h-screen bg-black text-white pb-20">
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-            <p className="text-gray-400">Loading marketplace...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-4">
+    <motion.div
+      initial={{ x: 0 }}
+      exit={{ x: "-100%" }}
+      transition={{ duration: 0.4, ease: "easeInOut" }}
+      className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-4"
+    >
       <div className="text-center">
         <SplitText
           text="Favor Exchange"
           className="text-6xl md:text-8xl font-bold text-white mb-8"
           tag="h1"
-          delay={80}
-          duration={0.8}
+          delay={50}
+          duration={0.5}
           ease="power3.out"
           splitType="chars"
           from={{ opacity: 0, y: 60, rotationX: -90 }}
@@ -68,8 +54,8 @@ export default function ExchangeEntry() {
             text="Buy and sell services"
             className="text-xl md:text-2xl text-gray-400 font-light"
             tag="p"
-            delay={60}
-            duration={0.6}
+            delay={30}
+            duration={0.4}
             ease="power2.out"
             splitType="chars"
             from={{ opacity: 0, y: 30 }}
@@ -80,6 +66,6 @@ export default function ExchangeEntry() {
           />
         )}
       </div>
-    </div>
+    </motion.div>
   )
 }

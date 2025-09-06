@@ -54,7 +54,7 @@ export function BottomNav({ activeTab }: BottomNavProps) {
       id: "exchange",
       label: "Exchange",
       icon: ShoppingBag,
-      path: "/exchange",
+      path: "/exchange/entry",
     },
     {
       id: "messages",
