@@ -84,6 +84,11 @@ export default function ExchangeMain() {
     router.push("/exchange/posts")
   }
 
+  const handleBruinBashClick = () => {
+    console.log("BruinBash clicked, navigating to specload")
+    router.push("/exchange/specials/specload")
+  }
+
   return (
     <div className="min-h-screen bg-black text-white pb-20 safe-area-inset">
       {/* Header with Search */}
@@ -176,7 +181,10 @@ export default function ExchangeMain() {
 
       {/* Featured Service - BruinBash */}
       <div className="px-4 py-2">
-        <Card className="overflow-hidden shadow-sm border-gray-800 bg-gray-900">
+        <Card
+          className="overflow-hidden shadow-sm border-gray-800 bg-gray-900 cursor-pointer hover:bg-gray-800 transition-all duration-200"
+          onClick={handleBruinBashClick}
+        >
           <div className="relative">
             <div className="h-48 overflow-hidden">
               <img
