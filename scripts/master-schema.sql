@@ -1,3 +1,20 @@
+-- ===================================
+-- NUCLEAR OPTION - DROPS EVERYTHING
+-- ===================================
+
+-- Drop the entire public schema and recreate it
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+
+-- Restore default permissions for public schema
+GRANT ALL ON SCHEMA public TO postgres;
+GRANT ALL ON SCHEMA public TO public;
+COMMENT ON SCHEMA public IS 'standard public schema';
+
+-- ===================================
+-- FRESH SCHEMA CREATION
+-- ===================================
+
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -11,7 +28,7 @@ CREATE TYPE post_type AS ENUM ('question', 'study_group', 'resource', 'tutoring'
 CREATE TYPE favor_type AS ENUM ('request', 'offer');
 
 -- User profiles table (consolidated from auth-schema and complete-schema)
-CREATE TABLE IF NOT EXISTS user_profiles (
+CREATE TABLE user_profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -22,7 +39,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 );
 
 -- Academic posts table (consolidated from supabase-schema and complete-schema)
-CREATE TABLE IF NOT EXISTS academic_posts (
+CREATE TABLE academic_posts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     department VARCHAR(100) NOT NULL,
     course VARCHAR(50) NOT NULL,
@@ -39,7 +56,7 @@ CREATE TABLE IF NOT EXISTS academic_posts (
 );
 
 -- Rideshare posts table (consolidated from supabase-schema-update and complete-schema)
-CREATE TABLE IF NOT EXISTS rideshare_posts (
+CREATE TABLE rideshare_posts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
     from_location VARCHAR(255),
@@ -62,7 +79,7 @@ CREATE TABLE IF NOT EXISTS rideshare_posts (
 );
 
 -- Exchange posts table
-CREATE TABLE IF NOT EXISTS exchange_posts (
+CREATE TABLE exchange_posts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
     description TEXT,
@@ -76,7 +93,7 @@ CREATE TABLE IF NOT EXISTS exchange_posts (
 );
 
 -- Favor posts table (from complete-schema)
-CREATE TABLE IF NOT EXISTS favor_posts (
+CREATE TABLE favor_posts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
     title VARCHAR(200) NOT NULL,
@@ -93,7 +110,7 @@ CREATE TABLE IF NOT EXISTS favor_posts (
 );
 
 -- Conversations table (consolidated from messaging-schema and complete-schema)
-CREATE TABLE IF NOT EXISTS conversations (
+CREATE TABLE conversations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     participant_1 UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
     participant_2 UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
@@ -103,7 +120,7 @@ CREATE TABLE IF NOT EXISTS conversations (
 );
 
 -- Conversation members table (from messaging-schema)
-CREATE TABLE IF NOT EXISTS conversation_members (
+CREATE TABLE conversation_members (
     conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
     user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -111,7 +128,7 @@ CREATE TABLE IF NOT EXISTS conversation_members (
 );
 
 -- Messages table (consolidated from messaging-schema and complete-schema)
-CREATE TABLE IF NOT EXISTS messages (
+CREATE TABLE messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
     sender_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
@@ -129,7 +146,7 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 -- Transactions table
-CREATE TABLE IF NOT EXISTS transactions (
+CREATE TABLE transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     buyer_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
     seller_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
@@ -146,7 +163,7 @@ CREATE TABLE IF NOT EXISTS transactions (
 );
 
 -- Reviews/Ratings table (consolidated from complete-schema)
-CREATE TABLE IF NOT EXISTS ratings (
+CREATE TABLE ratings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     rater_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
     rated_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
@@ -164,7 +181,7 @@ CREATE TABLE IF NOT EXISTS ratings (
 );
 
 -- Notifications table
-CREATE TABLE IF NOT EXISTS notifications (
+CREATE TABLE notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
     title VARCHAR(200) NOT NULL,
@@ -177,7 +194,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 -- Reports table
-CREATE TABLE IF NOT EXISTS reports (
+CREATE TABLE reports (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     reporter_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
     reported_user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
@@ -192,15 +209,15 @@ CREATE TABLE IF NOT EXISTS reports (
 );
 
 -- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_academic_posts_department ON academic_posts(department);
-CREATE INDEX IF NOT EXISTS idx_academic_posts_course ON academic_posts(course);
-CREATE INDEX IF NOT EXISTS idx_academic_posts_popularity ON academic_posts(popularity DESC);
-CREATE INDEX IF NOT EXISTS idx_rideshare_posts_departure_time ON rideshare_posts(departure_time);
-CREATE INDEX IF NOT EXISTS idx_rideshare_posts_destination ON rideshare_posts(destination);
-CREATE INDEX IF NOT EXISTS idx_conversations_participants ON conversations(participant_1, participant_2);
-CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
-CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
-CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+CREATE INDEX idx_academic_posts_department ON academic_posts(department);
+CREATE INDEX idx_academic_posts_course ON academic_posts(course);
+CREATE INDEX idx_academic_posts_popularity ON academic_posts(popularity DESC);
+CREATE INDEX idx_rideshare_posts_departure_time ON rideshare_posts(departure_time);
+CREATE INDEX idx_rideshare_posts_destination ON rideshare_posts(destination);
+CREATE INDEX idx_conversations_participants ON conversations(participant_1, participant_2);
+CREATE INDEX idx_messages_conversation ON messages(conversation_id);
+CREATE INDEX idx_messages_sender ON messages(sender_id);
+CREATE INDEX idx_messages_created_at ON messages(created_at);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
@@ -241,7 +258,7 @@ CREATE POLICY "Authenticated users can insert rideshare posts" ON rideshare_post
 CREATE POLICY "Users can update own rideshare posts" ON rideshare_posts
     FOR UPDATE USING (auth.uid() = user_id);
 
--- Exchange posts: Everyone can read, authenticated users can insert
+-- Exchange posts: Everyone can read, authenticated users users can insert
 CREATE POLICY "Exchange posts are viewable by everyone" ON exchange_posts
     FOR SELECT USING (true);
 
@@ -282,7 +299,7 @@ CREATE POLICY "Users can update messages they sent" ON messages
     FOR UPDATE USING (auth.uid() = sender_id);
 
 -- Function to automatically create user profile on signup
-CREATE OR REPLACE FUNCTION public.handle_new_user()
+CREATE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
     INSERT INTO public.user_profiles (id, username, email, full_name)
@@ -297,13 +314,12 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger to create profile on user signup
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- Function to update conversation last_message_at when new message is sent
-CREATE OR REPLACE FUNCTION public.update_conversation_timestamp()
+CREATE FUNCTION public.update_conversation_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
     UPDATE conversations 
@@ -314,7 +330,6 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger to update conversation timestamp
-DROP TRIGGER IF EXISTS on_message_created ON messages;
 CREATE TRIGGER on_message_created
     AFTER INSERT ON messages
     FOR EACH ROW EXECUTE FUNCTION public.update_conversation_timestamp();
