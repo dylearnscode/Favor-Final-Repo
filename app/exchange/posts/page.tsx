@@ -3,15 +3,14 @@
 import type React from "react"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { ArrowLeft, DollarSign, Clock, FileText, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, DollarSign, FileText, Clock, Tag } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { BottomNav } from "@/components/bottom-nav"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import BottomNav from "@/components/bottom-nav"
 
 export default function PostService() {
   const router = useRouter()
@@ -23,11 +22,8 @@ export default function PostService() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }))
+  const handleBack = () => {
+    router.push("/exchange/main")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,40 +31,42 @@ export default function PostService() {
     setIsSubmitting(true)
 
     // Simulate API call
-    console.log("Submitting service:", formData)
+    await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    // Simulate delay
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    console.log("Service posted:", formData)
 
-    setIsSubmitting(false)
+    // Navigate back to exchange main
     router.push("/exchange/main")
   }
 
   const isFormValid = formData.title && formData.description && formData.price && formData.duration
 
   return (
-    <div className="min-h-screen bg-black text-white pb-20 safe-area-inset">
+    <div className="min-h-screen bg-black text-white pb-20">
       {/* Header */}
-      <div className="sticky top-0 bg-black/95 backdrop-blur-sm border-b border-gray-800 p-4 z-10 pt-safe">
+      <div className="sticky top-0 bg-black z-40 px-4 py-4 border-b border-gray-800">
         <div className="flex items-center gap-4">
-          <Button onClick={() => router.back()} variant="ghost" size="sm" className="text-white hover:bg-gray-800 p-2">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
+          <button onClick={handleBack} className="p-2 hover:bg-gray-800 rounded-full transition-colors">
+            <ArrowLeft className="w-6 h-6" />
+          </button>
           <h1 className="text-xl font-bold">Post a Service</h1>
         </div>
       </div>
 
-      <div className="p-4 space-y-6">
+      <div className="px-4 py-6 max-w-2xl mx-auto">
         {/* Guidelines Card */}
-        <Card className="border-gray-800 bg-gray-900">
+        <Card className="mb-6 bg-gray-900 border-gray-800">
           <CardHeader>
-            <CardTitle className="text-white text-lg">Posting Guidelines</CardTitle>
+            <CardTitle className="text-white">Posting Guidelines</CardTitle>
+            <CardDescription className="text-gray-400">
+              Follow these tips to create an effective service listing
+            </CardDescription>
           </CardHeader>
           <CardContent className="text-gray-300 text-sm space-y-2">
-            <p>• Be clear and specific about your service</p>
-            <p>• Set fair and competitive pricing</p>
-            <p>• Respond promptly to inquiries</p>
-            <p>• Only post services you can actually provide</p>
+            <p>• Be clear and specific about what you're offering</p>
+            <p>• Set a fair price based on time and effort required</p>
+            <p>• Include all relevant details in the description</p>
+            <p>• Respond promptly to interested buyers</p>
           </CardContent>
         </Card>
 
@@ -76,66 +74,70 @@ export default function PostService() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Title */}
           <div className="space-y-2">
-            <Label htmlFor="title" className="text-white flex items-center gap-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
               <Tag className="w-4 h-4" />
               Service Title
-            </Label>
+            </label>
             <Input
-              id="title"
+              type="text"
               placeholder="e.g., Wait in line for Salpicon"
               value={formData.title}
-              onChange={(e) => handleInputChange("title", e.target.value)}
-              className="bg-gray-900 border-gray-700 text-white placeholder-gray-400"
+              onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+              className="bg-gray-900 border-gray-700 text-white placeholder-gray-500"
               maxLength={100}
+              required
             />
             <p className="text-xs text-gray-500">{formData.title.length}/100 characters</p>
           </div>
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description" className="text-white flex items-center gap-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
               <FileText className="w-4 h-4" />
               Description
-            </Label>
+            </label>
             <Textarea
-              id="description"
-              placeholder="Describe your service in detail. What exactly will you do? When are you available?"
+              placeholder="Describe your service in detail. What exactly will you do? What should the buyer expect?"
               value={formData.description}
-              onChange={(e) => handleInputChange("description", e.target.value)}
-              className="bg-gray-900 border-gray-700 text-white placeholder-gray-400 min-h-[120px]"
+              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              className="bg-gray-900 border-gray-700 text-white placeholder-gray-500 min-h-[120px]"
               maxLength={500}
+              required
             />
             <p className="text-xs text-gray-500">{formData.description.length}/500 characters</p>
           </div>
 
           {/* Price */}
           <div className="space-y-2">
-            <Label htmlFor="price" className="text-white flex items-center gap-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
               <DollarSign className="w-4 h-4" />
               Price
-            </Label>
+            </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">$</span>
+              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
-                id="price"
                 type="number"
                 placeholder="0"
                 value={formData.price}
-                onChange={(e) => handleInputChange("price", e.target.value)}
-                className="pl-8 bg-gray-900 border-gray-700 text-white placeholder-gray-400"
+                onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
+                className="pl-10 bg-gray-900 border-gray-700 text-white placeholder-gray-500"
                 min="0"
                 step="0.01"
+                required
               />
             </div>
           </div>
 
           {/* Duration */}
           <div className="space-y-2">
-            <Label htmlFor="duration" className="text-white flex items-center gap-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
               <Clock className="w-4 h-4" />
               How long to keep this post up?
-            </Label>
-            <Select value={formData.duration} onValueChange={(value) => handleInputChange("duration", value)}>
+            </label>
+            <Select
+              value={formData.duration}
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, duration: value }))}
+            >
               <SelectTrigger className="bg-gray-900 border-gray-700 text-white">
                 <SelectValue placeholder="Select duration" />
               </SelectTrigger>
@@ -156,14 +158,14 @@ export default function PostService() {
           <Button
             type="submit"
             disabled={!isFormValid || isSubmitting}
-            className="w-full h-12 bg-white text-black hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500"
           >
             {isSubmitting ? "Posting..." : "Post Service"}
           </Button>
         </form>
       </div>
 
-      <BottomNav activeTab="exchange" />
+      <BottomNav />
     </div>
   )
 }
