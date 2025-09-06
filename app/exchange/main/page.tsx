@@ -270,16 +270,17 @@ export default function ExchangeMain() {
         )}
       </div>
 
-      {/* Floating Post Button */}
-      <div className="fixed bottom-24 right-6 z-20">
-        <Button
-          onClick={handlePostClick}
-          size="lg"
-          className="w-14 h-14 rounded-full bg-white text-black hover:bg-gray-200 shadow-lg hover:shadow-xl transition-all duration-200"
-        >
-          <Plus className="w-6 h-6" />
-        </Button>
-      </div>
+    {/* Floating Post Button */}
+<div className="fixed bottom-24 right-6 z-50">
+  <Button
+    onClick={handlePostClick}
+    size="lg"
+    className="w-14 h-14 rounded-full bg-white text-black hover:bg-gray-200 shadow-lg hover:shadow-xl transition-all duration-200"
+    style={{ position: 'relative', zIndex: 9999 }}
+  >
+    <Plus className="w-6 h-6" />
+  </Button>
+</div>
 
       <BottomNav activeTab="exchange" />
     </div>
