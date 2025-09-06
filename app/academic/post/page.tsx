@@ -1,199 +1,267 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Upload } from "lucide-react"
+import { ArrowLeft, BookOpen, Upload } from "lucide-react"
+import { createClient } from "@/lib/supabase"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 
-export default function PostAcademicPage() {
+const DEPARTMENTS = [
+  "Computer Science",
+  "Mathematics",
+  "Management",
+  "Economics",
+  "Psychology",
+  "Biology",
+  "Chemistry",
+  "Physics",
+  "English",
+  "History",
+]
+
+const COURSES_BY_DEPARTMENT: Record<string, string[]> = {
+  "Computer Science": ["CS 31", "CS 32", "CS 33", "CS 111", "CS 118", "CS 131"],
+  Mathematics: ["Math 31A", "Math 31B", "Math 32A", "Math 32B", "Math 33A", "Math 33B"],
+  Management: ["Management 1A", "Management 1B", "Management 100", "Management 120"],
+  Economics: ["Econ 1", "Econ 2", "Econ 11", "Econ 41", "Econ 101", "Econ 102"],
+  Psychology: ["Psych 10", "Psych 100A", "Psych 100B", "Psych 110", "Psych 120A"],
+  Biology: ["Bio 1", "Bio 2", "Bio 3", "Bio 100", "Bio 101", "Bio 102"],
+  Chemistry: ["Chem 14A", "Chem 14B", "Chem 14C", "Chem 14D", "Chem 153A"],
+  Physics: ["Physics 1A", "Physics 1B", "Physics 1C", "Physics 4AL", "Physics 4BL"],
+  English: ["English 10A", "English 10B", "English 10C", "English 100", "English 120"],
+  History: ["History 1A", "History 1B", "History 1C", "History 100", "History 120"],
+}
+
+export default function PostAcademic() {
   const router = useRouter()
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    subject: "",
+    department: "",
     course: "",
-    type: "",
-    file: null as File | null,
+    title: "",
+    resource: "",
+    pdfUrl: "",
+    description: "",
   })
-  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const supabase = createClient()
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSubmitting(true)
+
+    if (!formData.department || !formData.course || !formData.title || !formData.resource || !formData.pdfUrl) {
+      alert("Please fill in all required fields")
+      return
+    }
+
+    setLoading(true)
 
     try {
-      // Here you would typically upload to your backend
-      console.log("Submitting academic post:", formData)
+      const { error } = await supabase.from("academic_posts").insert([
+        {
+          department: formData.department,
+          course: formData.course,
+          title: formData.title,
+          resource: formData.resource,
+          pdf_url: formData.pdfUrl,
+          uploaded_by: "Current User", // TODO: Get from auth
+          upload_date: new Date().toISOString(),
+          popularity: Math.floor(Math.random() * 50) + 50, // Random popularity 50-99
+        },
+      ])
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      if (error) {
+        console.error("Error creating academic post:", error)
+        alert("Error creating post. Please check your database connection.")
+        return
+      }
 
-      router.push("/academic")
+      alert("Academic material posted successfully!")
+      router.push("/")
     } catch (error) {
-      console.error("Error submitting post:", error)
+      console.error("Error creating academic post:", error)
+      alert("Error creating post. Please try again.")
     } finally {
-      setIsSubmitting(false)
+      setLoading(false)
     }
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setFormData((prev) => ({ ...prev, file }))
-    }
-  }
+  const availableCourses = formData.department ? COURSES_BY_DEPARTMENT[formData.department] || [] : []
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-black text-white pb-20 safe-area-inset">
       {/* Header */}
-      <div className="pt-safe px-4 py-6 border-b border-border/40">
-        <div className="flex items-center gap-3 mb-4">
-          <Link href="/academic">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4" />
+      <div className="sticky top-0 bg-black/95 backdrop-blur-sm border-b border-gray-800 p-4 z-10 pt-safe">
+        <div className="flex items-center gap-3 mb-6">
+          <Link href="/">
+            <Button variant="ghost" size="icon" className="text-white hover:bg-gray-800">
+              <ArrowLeft className="w-6 h-6" />
             </Button>
           </Link>
-          <h1 className="text-2xl font-bold">Post Academic Material</h1>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+              <BookOpen className="w-5 h-5 text-black" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-white">Share Material</h1>
+              <p className="text-sm text-gray-400 font-medium">Upload academic resources</p>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Form */}
-      <div className="px-4 py-6">
-        <Card>
+      <div className="p-4">
+        <Card className="bg-gray-900 border-gray-800">
           <CardHeader>
-            <CardTitle>Share Your Academic Material</CardTitle>
-            <CardDescription>Help your fellow students by sharing notes, textbooks, or study materials</CardDescription>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Upload className="w-5 h-5" />
+              Academic Material Details
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Department */}
               <div className="space-y-2">
-                <Label htmlFor="title">Title *</Label>
-                <Input
-                  id="title"
-                  placeholder="e.g., CS 101 Complete Notes"
-                  value={formData.title}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Description *</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Describe what this material covers and how it might help other students..."
-                  value={formData.description}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                  rows={4}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="subject">Subject *</Label>
-                  <Select
-                    value={formData.subject}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, subject: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select subject" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Computer Science">Computer Science</SelectItem>
-                      <SelectItem value="Mathematics">Mathematics</SelectItem>
-                      <SelectItem value="Chemistry">Chemistry</SelectItem>
-                      <SelectItem value="Physics">Physics</SelectItem>
-                      <SelectItem value="Biology">Biology</SelectItem>
-                      <SelectItem value="English">English</SelectItem>
-                      <SelectItem value="History">History</SelectItem>
-                      <SelectItem value="Psychology">Psychology</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="course">Course Code *</Label>
-                  <Input
-                    id="course"
-                    placeholder="e.g., CS 101"
-                    value={formData.course}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, course: e.target.value }))}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="type">Material Type *</Label>
+                <Label htmlFor="department" className="text-white font-medium">
+                  Department *
+                </Label>
                 <Select
-                  value={formData.type}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}
+                  value={formData.department}
+                  onValueChange={(value) => {
+                    handleInputChange("department", value)
+                    handleInputChange("course", "") // Reset course when department changes
+                  }}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
+                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white h-12">
+                    <SelectValue placeholder="Select department" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="notes">Notes</SelectItem>
-                    <SelectItem value="textbook">Textbook</SelectItem>
-                    <SelectItem value="study-guide">Study Guide</SelectItem>
-                    <SelectItem value="assignment">Assignment</SelectItem>
-                    <SelectItem value="slides">Lecture Slides</SelectItem>
-                    <SelectItem value="practice">Practice Problems</SelectItem>
+                  <SelectContent className="bg-gray-800 border-gray-700">
+                    {DEPARTMENTS.map((dept) => (
+                      <SelectItem key={dept} value={dept} className="text-white hover:bg-gray-700">
+                        {dept}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
+              {/* Course */}
               <div className="space-y-2">
-                <Label htmlFor="file">Upload File</Label>
-                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                  <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <div className="text-sm text-muted-foreground mb-2">Click to upload or drag and drop</div>
-                  <div className="text-xs text-muted-foreground mb-4">PDF, DOC, DOCX, PPT, PPTX (Max 10MB)</div>
-                  <Input
-                    id="file"
-                    type="file"
-                    accept=".pdf,.doc,.docx,.ppt,.pptx"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <Button type="button" variant="outline" onClick={() => document.getElementById("file")?.click()}>
-                    Choose File
-                  </Button>
-                  {formData.file && <div className="mt-2 text-sm text-foreground">Selected: {formData.file.name}</div>}
-                </div>
+                <Label htmlFor="course" className="text-white font-medium">
+                  Course *
+                </Label>
+                <Select
+                  value={formData.course}
+                  onValueChange={(value) => handleInputChange("course", value)}
+                  disabled={!formData.department}
+                >
+                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white h-12">
+                    <SelectValue placeholder="Select course" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-700">
+                    {availableCourses.map((course) => (
+                      <SelectItem key={course} value={course} className="text-white hover:bg-gray-700">
+                        {course}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              <div className="flex gap-3">
-                <Button
-                  type="submit"
-                  disabled={
-                    isSubmitting ||
-                    !formData.title ||
-                    !formData.description ||
-                    !formData.subject ||
-                    !formData.course ||
-                    !formData.type
-                  }
-                  className="flex-1"
-                >
-                  {isSubmitting ? "Posting..." : "Post Material"}
-                </Button>
-                <Link href="/academic">
-                  <Button type="button" variant="outline">
-                    Cancel
-                  </Button>
-                </Link>
+              {/* Course Title */}
+              <div className="space-y-2">
+                <Label htmlFor="title" className="text-white font-medium">
+                  Course Title *
+                </Label>
+                <Input
+                  id="title"
+                  placeholder="e.g., Introduction to Computer Science I"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange("title", e.target.value)}
+                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 h-12"
+                  required
+                />
               </div>
+
+              {/* Resource Name */}
+              <div className="space-y-2">
+                <Label htmlFor="resource" className="text-white font-medium">
+                  Resource Name *
+                </Label>
+                <Input
+                  id="resource"
+                  placeholder="e.g., Midterm Practice Questions, Study Guide, Lecture Notes"
+                  value={formData.resource}
+                  onChange={(e) => handleInputChange("resource", e.target.value)}
+                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 h-12"
+                  required
+                />
+              </div>
+
+              {/* PDF URL */}
+              <div className="space-y-2">
+                <Label htmlFor="pdfUrl" className="text-white font-medium">
+                  PDF URL *
+                </Label>
+                <Input
+                  id="pdfUrl"
+                  type="url"
+                  placeholder="https://example.com/document.pdf"
+                  value={formData.pdfUrl}
+                  onChange={(e) => handleInputChange("pdfUrl", e.target.value)}
+                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 h-12"
+                  required
+                />
+              </div>
+
+              {/* Description (Optional) */}
+              <div className="space-y-2">
+                <Label htmlFor="description" className="text-white font-medium">
+                  Description (Optional)
+                </Label>
+                <Textarea
+                  id="description"
+                  placeholder="Additional details about this resource..."
+                  value={formData.description}
+                  onChange={(e) => handleInputChange("description", e.target.value)}
+                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 min-h-[80px]"
+                />
+              </div>
+
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-white text-black hover:bg-gray-200 font-bold h-12 text-base"
+              >
+                {loading ? "Uploading..." : "Share Material"}
+              </Button>
             </form>
+          </CardContent>
+        </Card>
+
+        {/* Info Card */}
+        <Card className="mt-4 bg-gray-900 border-gray-800">
+          <CardContent className="p-4">
+            <h3 className="font-bold text-white mb-2">📚 Sharing Guidelines</h3>
+            <ul className="text-sm text-gray-400 space-y-1">
+              <li>• Only share materials you have permission to distribute</li>
+              <li>• Ensure PDFs are accessible and high quality</li>
+              <li>• Use descriptive names for easy searching</li>
+              <li>• Consider adding context in the description</li>
+            </ul>
           </CardContent>
         </Card>
       </div>

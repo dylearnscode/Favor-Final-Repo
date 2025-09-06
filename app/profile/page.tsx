@@ -1,244 +1,332 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import type React from "react"
+
+import { useState } from "react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useAuth } from "@/hooks/use-auth"
-import { Settings, Edit, BookOpen, Car, Package, MessageCircle } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Camera, Edit, Plus, MapPin, Calendar, Zap } from "lucide-react"
+import { BottomNav } from "@/components/bottom-nav"
+import { useRouter } from "next/navigation"
 
-interface UserPost {
+interface Service {
   id: string
   title: string
-  category: "academic" | "rideshare" | "exchange"
-  created_at: string
-  status: "active" | "completed" | "expired"
+  price: string
+  category: string
 }
 
-export default function ProfilePage() {
-  const { user, signOut } = useAuth()
-  const [userPosts, setUserPosts] = useState<UserPost[]>([])
-  const [stats, setStats] = useState({
-    totalPosts: 0,
-    activeRides: 0,
-    itemsSold: 0,
-    materialsShared: 0,
+interface FavorRelationship {
+  id: string
+  user_name: string
+  type: "owes_me" | "i_owe"
+  description: string
+}
+
+export default function Profile() {
+  const router = useRouter()
+  const [isEditing, setIsEditing] = useState(false)
+  const [isSliding, setIsSliding] = useState(false)
+  const [showAddService, setShowAddService] = useState(false)
+  const [profileData, setProfileData] = useState({
+    name: "Alex Johnson",
+    bio: "UCLA Computer Science student. Love helping others with coding and math!",
+    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
+    location: "Westwood, CA",
+    joinDate: "September 2023",
   })
 
-  useEffect(() => {
-    // Mock data
-    setUserPosts([
-      {
-        id: "1",
-        title: "CS 101 Study Notes",
-        category: "academic",
-        created_at: "2024-01-15T10:00:00Z",
-        status: "active",
-      },
-      {
-        id: "2",
-        title: "Ride to LAX Airport",
-        category: "rideshare",
-        created_at: "2024-01-14T15:30:00Z",
-        status: "completed",
-      },
-      {
-        id: "3",
-        title: "MacBook Pro for Sale",
-        category: "exchange",
-        created_at: "2024-01-13T09:15:00Z",
-        status: "active",
-      },
-    ])
+  const [services, setServices] = useState<Service[]>([
+    { id: "1", title: "Python Tutoring", price: "$25/hr", category: "Education" },
+    { id: "2", title: "Resume Review", price: "$15", category: "Career" },
+    { id: "3", title: "Car Wash", price: "$20", category: "Services" },
+  ])
 
-    setStats({
-      totalPosts: 12,
-      activeRides: 3,
-      itemsSold: 5,
-      materialsShared: 8,
-    })
-  }, [])
+  const [favorRelationships] = useState<FavorRelationship[]>([
+    { id: "1", user_name: "Sarah K.", type: "owes_me", description: "helped with calculus homework" },
+    { id: "2", user_name: "Mike R.", type: "owes_me", description: "gave ride to airport" },
+    { id: "3", user_name: "Emma L.", type: "i_owe", description: "borrowed textbook" },
+    { id: "4", user_name: "David L.", type: "i_owe", description: "helped with coding project" },
+    { id: "5", user_name: "Jessica M.", type: "owes_me", description: "tutored in statistics" },
+  ])
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case "academic":
-        return <BookOpen className="h-4 w-4" />
-      case "rideshare":
-        return <Car className="h-4 w-4" />
-      case "exchange":
-        return <Package className="h-4 w-4" />
-      default:
-        return null
+  const [newService, setNewService] = useState({
+    title: "",
+    price: "",
+    category: "",
+  })
+
+  const handleMessagesClick = () => {
+    setIsSliding(true)
+    setTimeout(() => {
+      router.push("/messages")
+    }, 300)
+  }
+
+  const handleSaveProfile = () => {
+    setIsEditing(false)
+    // In real app, save to database
+  }
+
+  const handleAddService = () => {
+    if (newService.title && newService.price && newService.category) {
+      const service: Service = {
+        id: Date.now().toString(),
+        title: newService.title,
+        price: newService.price,
+        category: newService.category,
+      }
+      setServices([...services, service])
+      setNewService({ title: "", price: "", category: "" })
+      setShowAddService(false)
     }
   }
 
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case "academic":
-        return "bg-blue-500/10 text-blue-500 border-blue-500/20"
-      case "rideshare":
-        return "bg-green-500/10 text-green-500 border-green-500/20"
-      case "exchange":
-        return "bg-purple-500/10 text-purple-500 border-purple-500/20"
-      default:
-        return "bg-gray-500/10 text-gray-500 border-gray-500/20"
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setProfileData((prev) => ({
+          ...prev,
+          avatar: e.target?.result as string,
+        }))
+      }
+      reader.readAsDataURL(file)
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-500/10 text-green-500"
-      case "completed":
-        return "bg-blue-500/10 text-blue-500"
-      case "expired":
-        return "bg-gray-500/10 text-gray-500"
-      default:
-        return "bg-gray-500/10 text-gray-500"
-    }
-  }
-
-  const getInitials = (name: string) => {
-    return (
-      name
-        ?.split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase() || "U"
-    )
-  }
+  const owesMe = favorRelationships.filter((rel) => rel.type === "owes_me")
+  const iOwe = favorRelationships.filter((rel) => rel.type === "i_owe")
 
   return (
-    <div className="min-h-screen bg-background">
+    <div
+      className={`min-h-screen bg-black text-white pb-20 safe-area-inset transition-transform duration-300 ${isSliding ? "translate-x-full" : ""}`}
+    >
       {/* Header */}
-      <div className="pt-safe px-4 py-6 border-b border-border/40">
+      <div className="sticky top-0 bg-black/95 backdrop-blur-sm border-b border-gray-800 p-4 z-10 pt-safe">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Profile</h1>
-          <Button variant="ghost" size="sm">
-            <Settings className="h-4 w-4" />
+          <h1 className="text-2xl font-bold tracking-tight text-white">Profile</h1>
+          <Button variant="ghost" size="icon" className="text-white hover:bg-gray-800" onClick={handleMessagesClick}>
+            <div className="relative">
+              <div className="w-8 h-6 bg-gray-700 rounded-full flex items-center justify-center">
+                <Zap className="w-4 h-4 text-white" />
+              </div>
+            </div>
           </Button>
         </div>
       </div>
 
-      {/* Profile Info */}
-      <div className="px-4 py-6">
-        <Card className="mb-6">
+      <div className="p-4 space-y-6">
+        {/* Profile Section */}
+        <Card className="bg-gray-900 border-gray-800">
           <CardContent className="p-6">
-            <div className="flex items-center gap-4 mb-4">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src="/placeholder-user.jpg" />
-                <AvatarFallback className="text-lg">{getInitials(user?.name || "User")}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <h2 className="text-xl font-semibold">{user?.name || "User Name"}</h2>
-                <p className="text-muted-foreground">{user?.email || "user@university.edu"}</p>
-                <p className="text-sm text-muted-foreground mt-1">Member since January 2024</p>
+            <div className="flex items-start gap-4 mb-4">
+              <div className="relative">
+                <Avatar className="w-20 h-20">
+                  <AvatarImage src={profileData.avatar || "/placeholder.svg"} />
+                  <AvatarFallback className="bg-gray-700 text-white text-xl font-bold">
+                    {profileData.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                {isEditing && (
+                  <label className="absolute -bottom-2 -right-2 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors">
+                    <Camera className="w-4 h-4 text-white" />
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                  </label>
+                )}
               </div>
-              <Button variant="outline" size="sm">
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </Button>
-            </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.totalPosts}</div>
-                <div className="text-xs text-muted-foreground">Total Posts</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.materialsShared}</div>
-                <div className="text-xs text-muted-foreground">Materials</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.activeRides}</div>
-                <div className="text-xs text-muted-foreground">Rides</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{stats.itemsSold}</div>
-                <div className="text-xs text-muted-foreground">Items Sold</div>
+              <div className="flex-1 min-w-0">
+                {isEditing ? (
+                  <div className="space-y-3">
+                    <Input
+                      value={profileData.name}
+                      onChange={(e) => setProfileData((prev) => ({ ...prev, name: e.target.value }))}
+                      className="bg-gray-800 border-gray-700 text-white font-bold text-lg"
+                    />
+                    <Textarea
+                      value={profileData.bio}
+                      onChange={(e) => setProfileData((prev) => ({ ...prev, bio: e.target.value }))}
+                      className="bg-gray-800 border-gray-700 text-white resize-none"
+                      rows={3}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <h2 className="text-xl font-bold text-white mb-2">{profileData.name}</h2>
+                    <p className="text-gray-300 mb-3">{profileData.bio}</p>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4" />
+                    <span>{profileData.location}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
+                    <span>Joined {profileData.joinDate}</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  {isEditing ? (
+                    <>
+                      <Button onClick={handleSaveProfile} className="bg-blue-600 hover:bg-blue-700 text-white">
+                        Save Changes
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => setIsEditing(false)}
+                        className="text-gray-400 hover:text-white"
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      onClick={() => setIsEditing(true)}
+                      className="bg-white text-black hover:bg-gray-200 font-bold"
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit Profile
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Tabs */}
-        <Tabs defaultValue="posts" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="posts">My Posts</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
-          </TabsList>
+        {/* Favor Network */}
+        <Card className="bg-gray-900 border-gray-800">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-bold text-white mb-4">Favor Network</h3>
 
-          <TabsContent value="posts" className="space-y-4 mt-6">
-            {userPosts.map((post) => (
-              <Card key={post.id}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="outline" className={getCategoryColor(post.category)}>
-                          {getCategoryIcon(post.category)}
-                          <span className="ml-1 capitalize">{post.category}</span>
-                        </Badge>
-                        <Badge variant="secondary" className={getStatusColor(post.status)}>
-                          {post.status}
-                        </Badge>
-                      </div>
-                      <CardTitle className="text-base">{post.title}</CardTitle>
-                      <CardDescription>Posted on {new Date(post.created_at).toLocaleDateString()}</CardDescription>
-                    </div>
-                    <Button variant="ghost" size="sm">
-                      <Edit className="h-4 w-4" />
-                    </Button>
+            {/* People who owe me favors */}
+            <div className="mb-4">
+              <h4 className="text-sm font-medium text-gray-400 mb-2">People who owe you favors</h4>
+              <div className="flex flex-wrap gap-2">
+                {owesMe.map((relationship) => (
+                  <div
+                    key={relationship.id}
+                    className="flex items-center gap-2 bg-green-900/30 border border-green-800 rounded-full px-3 py-1"
+                  >
+                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                    <span className="text-sm text-green-300 font-medium">{relationship.user_name}</span>
+                    <span className="text-xs text-green-400">({relationship.description})</span>
                   </div>
-                </CardHeader>
-              </Card>
-            ))}
-          </TabsContent>
+                ))}
+              </div>
+            </div>
 
-          <TabsContent value="activity" className="space-y-4 mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <MessageCircle className="h-4 w-4 text-blue-500" />
-                    <div className="flex-1">
-                      <p className="text-sm">New message from Sarah Chen</p>
-                      <p className="text-xs text-muted-foreground">2 hours ago</p>
+            {/* People I owe favors to */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-400 mb-2">People you owe favors to</h4>
+              <div className="flex flex-wrap gap-2">
+                {iOwe.map((relationship) => (
+                  <div
+                    key={relationship.id}
+                    className="flex items-center gap-2 bg-orange-900/30 border border-orange-800 rounded-full px-3 py-1"
+                  >
+                    <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                    <span className="text-sm text-orange-300 font-medium">{relationship.user_name}</span>
+                    <span className="text-xs text-orange-400">({relationship.description})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Services */}
+        <Card className="bg-gray-900 border-gray-800">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">My Services</h3>
+              <Dialog open={showAddService} onOpenChange={setShowAddService}>
+                <DialogTrigger asChild>
+                  <Button className="bg-white text-black hover:bg-gray-200 font-bold">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Service
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-gray-900 border-gray-700 text-white">
+                  <DialogHeader>
+                    <DialogTitle className="text-white">Add New Service</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-gray-300">Service Title</Label>
+                      <Input
+                        value={newService.title}
+                        onChange={(e) => setNewService((prev) => ({ ...prev, title: e.target.value }))}
+                        placeholder="e.g., Math Tutoring"
+                        className="bg-gray-800 border-gray-700 text-white"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Price</Label>
+                      <Input
+                        value={newService.price}
+                        onChange={(e) => setNewService((prev) => ({ ...prev, price: e.target.value }))}
+                        placeholder="e.g., $25/hr"
+                        className="bg-gray-800 border-gray-700 text-white"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-gray-300">Category</Label>
+                      <Input
+                        value={newService.category}
+                        onChange={(e) => setNewService((prev) => ({ ...prev, category: e.target.value }))}
+                        placeholder="e.g., Education"
+                        className="bg-gray-800 border-gray-700 text-white"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={handleAddService} className="bg-blue-600 hover:bg-blue-700 text-white flex-1">
+                        Add Service
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => setShowAddService(false)}
+                        className="text-gray-400 hover:text-white"
+                      >
+                        Cancel
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <BookOpen className="h-4 w-4 text-green-500" />
-                    <div className="flex-1">
-                      <p className="text-sm">Your study notes were downloaded</p>
-                      <p className="text-xs text-muted-foreground">5 hours ago</p>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            <div className="grid gap-3">
+              {services.map((service) => (
+                <div key={service.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-white">{service.title}</h4>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge className="bg-blue-900/50 text-blue-300 text-xs">{service.category}</Badge>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Car className="h-4 w-4 text-purple-500" />
-                    <div className="flex-1">
-                      <p className="text-sm">Ride to airport completed</p>
-                      <p className="text-xs text-muted-foreground">1 day ago</p>
-                    </div>
+                  <div className="text-right">
+                    <div className="font-bold text-white">{service.price}</div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-
-        {/* Sign Out */}
-        <div className="mt-8">
-          <Button variant="outline" onClick={signOut} className="w-full bg-transparent">
-            Sign Out
-          </Button>
-        </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      <BottomNav activeTab="profile" />
     </div>
   )
 }
