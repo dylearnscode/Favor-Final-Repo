@@ -12,7 +12,7 @@ interface BottomNavProps {
   activeTab?: "academic" | "rideshare" | "exchange" | "messages" | "profile"
 }
 
-const BottomNav = ({ activeTab }: BottomNavProps) => {
+function BottomNav({ activeTab }: BottomNavProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { user, profile } = useAuth()
