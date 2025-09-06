@@ -7,10 +7,11 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, DollarSign, Calendar, FileText, Type } from "lucide-react"
+import { Label } from "@/components/ui/label"
+import { ArrowLeft, Plus } from "lucide-react"
+import { BottomNav } from "@/components/bottom-nav"
 
 export default function PostService() {
   const router = useRouter()
@@ -20,6 +21,7 @@ export default function PostService() {
     price: "",
     duration: "",
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
@@ -28,78 +30,79 @@ export default function PostService() {
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Handle form submission
-    console.log("Service posted:", formData)
+    setIsSubmitting(true)
+
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
+    // Navigate back to exchange main
     router.push("/exchange/main")
+    setIsSubmitting(false)
   }
 
-  const handleBack = () => {
-    router.push("/exchange/main")
-  }
+  const isFormValid = formData.title.trim() && formData.description.trim() && formData.price.trim() && formData.duration
 
   return (
-    <div className="min-h-screen bg-black text-white safe-area-inset">
+    <div className="min-h-screen bg-black text-white pb-20 safe-area-inset">
       {/* Header */}
       <div className="sticky top-0 bg-black/95 backdrop-blur-sm border-b border-gray-800 p-4 z-10 pt-safe">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={handleBack} className="text-white hover:bg-gray-800 p-2">
+          <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-white hover:bg-gray-800 p-2">
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-xl font-bold">Post a Service</h1>
         </div>
       </div>
 
-      {/* Form Content */}
-      <div className="p-4 pb-8">
-        <Card className="bg-gray-900 border-gray-800">
+      {/* Form */}
+      <div className="p-4">
+        <Card className="border-gray-800 bg-gray-900">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Service Details
+              <Plus className="w-5 h-5" />
+              Create Service Listing
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Title Field */}
+              {/* Title */}
               <div className="space-y-2">
-                <Label htmlFor="title" className="text-white flex items-center gap-2">
-                  <Type className="w-4 h-4" />
-                  Service Title
+                <Label htmlFor="title" className="text-white font-medium">
+                  Service Title *
                 </Label>
                 <Input
                   id="title"
                   placeholder="e.g., Wait in line for Salpicon, Resume review, Concert ticket pickup"
                   value={formData.title}
                   onChange={(e) => handleInputChange("title", e.target.value)}
-                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 h-12"
-                  required
+                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500"
+                  maxLength={100}
                 />
+                <p className="text-xs text-gray-500">{formData.title.length}/100 characters</p>
               </div>
 
-              {/* Description Field */}
+              {/* Description */}
               <div className="space-y-2">
-                <Label htmlFor="description" className="text-white flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Description
+                <Label htmlFor="description" className="text-white font-medium">
+                  Description *
                 </Label>
                 <Textarea
                   id="description"
-                  placeholder="Describe your service in detail. What exactly will you do? What makes you qualified? Any special requirements?"
+                  placeholder="Describe your service in detail. What exactly will you do? What should the buyer expect?"
                   value={formData.description}
                   onChange={(e) => handleInputChange("description", e.target.value)}
-                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 min-h-[120px] resize-none"
-                  required
+                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500 min-h-[120px] resize-none"
+                  maxLength={500}
                 />
-                <p className="text-xs text-gray-500">Be specific about what you're offering and any requirements</p>
+                <p className="text-xs text-gray-500">{formData.description.length}/500 characters</p>
               </div>
 
-              {/* Price Field */}
+              {/* Price */}
               <div className="space-y-2">
-                <Label htmlFor="price" className="text-white flex items-center gap-2">
-                  <DollarSign className="w-4 h-4" />
-                  Price
+                <Label htmlFor="price" className="text-white font-medium">
+                  Price *
                 </Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">$</span>
@@ -109,23 +112,21 @@ export default function PostService() {
                     placeholder="0.00"
                     value={formData.price}
                     onChange={(e) => handleInputChange("price", e.target.value)}
-                    className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 h-12 pl-8"
+                    className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 focus:border-blue-500 pl-8"
                     min="0"
                     step="0.01"
-                    required
                   />
                 </div>
                 <p className="text-xs text-gray-500">Set a fair price for your service</p>
               </div>
 
-              {/* Duration Field */}
+              {/* Duration */}
               <div className="space-y-2">
-                <Label htmlFor="duration" className="text-white flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  How long to keep this post active?
+                <Label htmlFor="duration" className="text-white font-medium">
+                  How long to keep this post active? *
                 </Label>
                 <Select value={formData.duration} onValueChange={(value) => handleInputChange("duration", value)}>
-                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white h-12">
+                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white focus:border-blue-500">
                     <SelectValue placeholder="Select duration" />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-800 border-gray-700">
@@ -155,41 +156,37 @@ export default function PostService() {
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-gray-500">
-                  Choose how long your service should remain visible to other students
-                </p>
+                <p className="text-xs text-gray-500">Your post will automatically expire after this time</p>
               </div>
 
               {/* Submit Button */}
               <div className="pt-4">
                 <Button
                   type="submit"
-                  className="w-full bg-white text-black hover:bg-gray-200 h-12 font-semibold"
-                  disabled={!formData.title || !formData.description || !formData.price || !formData.duration}
+                  disabled={!isFormValid || isSubmitting}
+                  className="w-full bg-white text-black hover:bg-gray-200 disabled:bg-gray-700 disabled:text-gray-400 font-medium py-3"
                 >
-                  Post Service
+                  {isSubmitting ? "Posting Service..." : "Post Service"}
                 </Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
 
-        {/* Guidelines Card */}
-        <Card className="bg-gray-900 border-gray-800 mt-6">
-          <CardHeader>
-            <CardTitle className="text-white text-lg">Posting Guidelines</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="text-sm text-gray-300 space-y-2">
-              <p>• Be honest and accurate about what you're offering</p>
-              <p>• Set reasonable prices for your services</p>
-              <p>• Respond promptly to interested students</p>
-              <p>• Follow through on your commitments</p>
-              <p>• Report any issues or inappropriate behavior</p>
+            {/* Guidelines */}
+            <div className="mt-6 p-4 bg-gray-800 rounded-lg">
+              <h3 className="text-sm font-medium text-white mb-2">Posting Guidelines</h3>
+              <ul className="text-xs text-gray-400 space-y-1">
+                <li>• Be clear and specific about what you're offering</li>
+                <li>• Set reasonable prices for your services</li>
+                <li>• Respond promptly to interested buyers</li>
+                <li>• Only post services you can actually provide</li>
+                <li>• Follow all university policies and guidelines</li>
+              </ul>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      <BottomNav activeTab="exchange" />
     </div>
   )
 }

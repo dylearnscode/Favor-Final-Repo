@@ -80,7 +80,7 @@ export default function ExchangeMain() {
   )
 
   const handlePostClick = () => {
-    router.push("/exchange/post")
+    router.push("/exchange/posts")
   }
 
   return (
