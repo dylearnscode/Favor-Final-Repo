@@ -9,6 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@emotion/is-prop-valid": "latest",
     "@gsap/react": "latest",
     "@hookform/resolvers": "^3.3.4",
     "@radix-ui/react-accordion": "latest",
@@ -44,6 +45,7 @@
     "cmdk": "latest",
     "date-fns": "^3.3.1",
     "embla-carousel-react": "latest",
+    "framer-motion": "latest",
     "gsap": "latest",
     "input-otp": "latest",
     "lucide-react": "^0.454.0",
