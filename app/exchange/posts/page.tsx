@@ -11,10 +11,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft } from "lucide-react"
-import { BottomNav } from "@/components/bottom-nav"
-import { useAuth } from "@/components/auth-provider"
 import { ProtectedRoute } from "@/components/protected-route"
-import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/components/auth-provider"
+import { supabase } from "@/lib/supabase"
+import { toast } from "sonner"
 
 const categories = ["Concert Tickets", "Dorm Items", "Preprofessional Help", "Food Truck Line Service"]
 
@@ -32,36 +32,50 @@ export default function PostServicePage() {
   const [description, setDescription] = useState("")
   const [dollars, setDollars] = useState("")
   const [cents, setCents] = useState("00")
-  const [negotiability, setNegotiability] = useState("non-negotiable")
+  const [negotiability, setNegotiability] = useState<"negotiable" | "non-negotiable">("non-negotiable")
   const [category, setCategory] = useState("")
   const [duration, setDuration] = useState("")
   const [loading, setLoading] = useState(false)
 
   const router = useRouter()
   const { user } = useAuth()
-  const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to post a service",
-        variant: "destructive",
-      })
+      toast.error("You must be signed in to post a service")
       return
     }
 
     setLoading(true)
 
     try {
+      // Convert price to decimal
       const price = Number.parseFloat(`${dollars || "0"}.${cents}`)
+
+      if (isNaN(price) || price < 0) {
+        toast.error("Please enter a valid price")
+        setLoading(false)
+        return
+      }
+
+      // Get the user's session token
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session) {
+        toast.error("Authentication required")
+        setLoading(false)
+        return
+      }
 
       const response = await fetch("/api/exchange/posts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           title,
@@ -75,33 +89,15 @@ export default function PostServicePage() {
 
       const result = await response.json()
 
-      if (result.success) {
-        toast({
-          title: "Service Posted!",
-          description: "Your service has been posted successfully",
-        })
-
-        // Reset form
-        setTitle("")
-        setDescription("")
-        setDollars("")
-        setCents("00")
-        setNegotiability("non-negotiable")
-        setCategory("")
-        setDuration("")
-
-        // Navigate back to main page
-        router.push("/exchange/main")
-      } else {
-        throw new Error(result.error || "Failed to post service")
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to create post")
       }
+
+      toast.success("Service posted successfully!")
+      router.push("/exchange/main")
     } catch (error) {
-      console.error("Error posting service:", error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to post service",
-        variant: "destructive",
-      })
+      console.error("Error creating post:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to create post")
     } finally {
       setLoading(false)
     }
@@ -109,19 +105,16 @@ export default function PostServicePage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-white border-b">
-          <div className="flex items-center justify-between p-4">
+      <div className="min-h-screen bg-gray-50 p-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center gap-4 mb-6">
             <Button variant="ghost" size="sm" onClick={() => router.back()} className="flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
               Back
             </Button>
-            <h1 className="text-lg font-semibold">Post a Service</h1>
-            <div className="w-16" />
+            <h1 className="text-2xl font-bold">Post a Service</h1>
           </div>
-        </div>
 
-        <div className="p-4">
           <Card>
             <CardHeader>
               <CardTitle>Service Details</CardTitle>
@@ -132,9 +125,9 @@ export default function PostServicePage() {
                   <Label htmlFor="title">Service Title</Label>
                   <Input
                     id="title"
+                    placeholder="e.g., Concert ticket for Taylor Swift"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="What service are you offering?"
                     required
                   />
                 </div>
@@ -143,55 +136,16 @@ export default function PostServicePage() {
                   <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
+                    placeholder="Describe your service in detail..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Describe your service in detail..."
                     rows={4}
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Price</Label>
-                  <div className="flex gap-2 items-center">
-                    <div className="flex items-center">
-                      <span className="text-lg font-medium mr-1">$</span>
-                      <Input
-                        type="number"
-                        value={dollars}
-                        onChange={(e) => setDollars(e.target.value)}
-                        placeholder="0"
-                        min="0"
-                        className="w-20"
-                      />
-                    </div>
-                    <span className="text-lg">.</span>
-                    <Select value={cents} onValueChange={setCents}>
-                      <SelectTrigger className="w-20">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 10 }, (_, i) => (
-                          <SelectItem key={i} value={i.toString().padStart(2, "0")}>
-                            {i.toString().padStart(2, "0")}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={negotiability} onValueChange={setNegotiability}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="non-negotiable">Fixed</SelectItem>
-                        <SelectItem value="negotiable">Negotiable</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
+                  <Label>Category</Label>
                   <Select value={category} onValueChange={setCategory} required>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a category" />
@@ -207,7 +161,50 @@ export default function PostServicePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="duration">Post Duration</Label>
+                  <Label>Price</Label>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex items-center">
+                      <span className="text-lg font-medium mr-1">$</span>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={dollars}
+                        onChange={(e) => setDollars(e.target.value)}
+                        className="w-20"
+                        min="0"
+                      />
+                      <span className="mx-1">.</span>
+                      <Select value={cents} onValueChange={setCents}>
+                        <SelectTrigger className="w-16">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 10 }, (_, i) => (
+                            <SelectItem key={i} value={i.toString().padStart(2, "0")}>
+                              {i.toString().padStart(2, "0")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Select
+                      value={negotiability}
+                      onValueChange={(value: "negotiable" | "non-negotiable") => setNegotiability(value)}
+                    >
+                      <SelectTrigger className="w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="non-negotiable">Fixed Price</SelectItem>
+                        <SelectItem value="negotiable">Negotiable</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Post Duration</Label>
                   <Select value={duration} onValueChange={setDuration} required>
                     <SelectTrigger>
                       <SelectValue placeholder="How long should this post be active?" />
@@ -229,8 +226,6 @@ export default function PostServicePage() {
             </CardContent>
           </Card>
         </div>
-
-        <BottomNav />
       </div>
     </ProtectedRoute>
   )

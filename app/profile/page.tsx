@@ -1,209 +1,170 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Separator } from "@/components/ui/separator"
+import { Badge } from "@/components/ui/badge"
+import { Settings, Star, MessageSquare, Calendar, LogOut } from "lucide-react"
 import { BottomNav } from "@/components/bottom-nav"
+import { ProtectedRoute } from "@/components/protected-route"
 import { useAuth } from "@/components/auth-provider"
 import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 export default function ProfilePage() {
-  const { user, profile, loading, signOut } = useAuth()
+  const { user, profile, signOut } = useAuth()
   const router = useRouter()
-  const { toast } = useToast()
-
-  const [editing, setEditing] = useState(false)
-  const [fullName, setFullName] = useState("")
-  const [username, setUsername] = useState("")
-
-  useEffect(() => {
-    if (profile) {
-      setFullName(profile.full_name || "")
-      setUsername(profile.username || "")
-    }
-  }, [profile])
 
   const handleSignOut = async () => {
     try {
       await signOut()
-      toast({
-        title: "Signed out successfully",
-        description: "You have been signed out of your account",
-      })
-      router.push("/")
+      toast.success("Signed out successfully")
+      router.push("/auth/signin")
     } catch (error) {
-      toast({
-        title: "Error signing out",
-        description: "There was a problem signing out",
-        variant: "destructive",
-      })
+      toast.error("Failed to sign out")
     }
   }
 
-  const handleSave = async () => {
-    // TODO: Implement profile update API
-    setEditing(false)
-    toast({
-      title: "Profile updated",
-      description: "Your profile has been updated successfully",
-    })
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-        </div>
-        <BottomNav />
-      </div>
-    )
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="p-4">
-          <Card>
-            <CardContent className="p-8 text-center">
-              <p className="text-gray-500 mb-4">Please sign in to view your profile</p>
-              <Button onClick={() => router.push("/auth/signin")}>Sign In</Button>
-            </CardContent>
-          </Card>
-        </div>
-        <BottomNav />
-      </div>
-    )
+  const handleChangeAccount = () => {
+    router.push("/auth/signin")
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b">
-        <div className="flex items-center justify-between p-4">
-          <h1 className="text-xl font-bold">Profile</h1>
-          <Button variant="outline" size="sm" onClick={() => router.push("/auth/signin")}>
-            Change Account
-          </Button>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <div className="bg-white shadow-sm p-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold">Profile</h1>
+            <Button variant="outline" size="sm" onClick={handleChangeAccount}>
+              Change Account
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <div className="p-4 space-y-6">
-        {/* Profile Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={profile?.avatar_url || undefined} />
-                <AvatarFallback className="text-lg">
-                  {profile?.full_name?.[0] || profile?.username?.[0] || user.email?.[0]}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <h2 className="text-xl font-semibold">{profile?.full_name || "No name set"}</h2>
-                <p className="text-gray-600">@{profile?.username || "No username"}</p>
-                <p className="text-sm text-gray-500">{user.email}</p>
-              </div>
-            </div>
-
-            <Separator />
-
-            {editing ? (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Enter your full name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Enter your username"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={handleSave}>Save Changes</Button>
-                  <Button variant="outline" onClick={() => setEditing(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
+        <div className="p-4 space-y-6 pb-20">
+          {/* Profile Info */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={profile?.avatar_url || ""} />
+                  <AvatarFallback>
+                    {profile?.full_name?.charAt(0) || profile?.username?.charAt(0) || "U"}
+                  </AvatarFallback>
+                </Avatar>
                 <div>
-                  <Label>Full Name</Label>
-                  <p className="text-sm text-gray-600 mt-1">{profile?.full_name || "Not set"}</p>
+                  <h2 className="text-xl font-semibold">{profile?.full_name || profile?.username || "User"}</h2>
+                  <p className="text-gray-600">@{profile?.username}</p>
+                  <p className="text-sm text-gray-500">{profile?.email}</p>
                 </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Badge variant="secondary">
+                  <Star className="h-3 w-3 mr-1" />
+                  4.8 Rating
+                </Badge>
+                <Badge variant="secondary">
+                  <MessageSquare className="h-3 w-3 mr-1" />
+                  23 Reviews
+                </Badge>
+                <Badge variant="secondary">
+                  <Calendar className="h-3 w-3 mr-1" />
+                  Member since {new Date(profile?.created_at || "").getFullYear()}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-blue-600">12</div>
+                <div className="text-sm text-gray-600">Services Posted</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-green-600">8</div>
+                <div className="text-sm text-gray-600">Completed</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <div className="text-2xl font-bold text-purple-600">4.8</div>
+                <div className="text-sm text-gray-600">Avg Rating</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Recent Activity */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div>
-                  <Label>Username</Label>
-                  <p className="text-sm text-gray-600 mt-1">{profile?.username || "Not set"}</p>
+                  <p className="font-medium">Concert Ticket Sale</p>
+                  <p className="text-sm text-gray-600">Completed • 2 days ago</p>
                 </div>
-                <Button variant="outline" onClick={() => setEditing(true)}>
-                  Edit Profile
-                </Button>
+                <Badge variant="outline" className="text-green-600">
+                  +$45.00
+                </Badge>
               </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Account Stats */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Account Stats</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <p className="text-2xl font-bold">0</p>
-                <p className="text-sm text-gray-500">Services Posted</p>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="font-medium">Dorm Room Setup Help</p>
+                  <p className="text-sm text-gray-600">In Progress • 1 week ago</p>
+                </div>
+                <Badge variant="outline" className="text-blue-600">
+                  Active
+                </Badge>
               </div>
-              <div>
-                <p className="text-2xl font-bold">0</p>
-                <p className="text-sm text-gray-500">Transactions</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold">-</p>
-                <p className="text-sm text-gray-500">Rating</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Account Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Account</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button variant="outline" className="w-full justify-start bg-transparent">
-              Settings
-            </Button>
-            <Button variant="outline" className="w-full justify-start bg-transparent">
-              Help & Support
-            </Button>
-            <Button variant="destructive" className="w-full justify-start" onClick={handleSignOut}>
-              Sign Out
-            </Button>
-          </CardContent>
-        </Card>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="font-medium">Resume Review Service</p>
+                  <p className="text-sm text-gray-600">Completed • 2 weeks ago</p>
+                </div>
+                <Badge variant="outline" className="text-green-600">
+                  +$25.00
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button variant="ghost" className="w-full justify-start">
+                <Settings className="h-4 w-4 mr-2" />
+                Account Settings
+              </Button>
+              <Button variant="ghost" className="w-full justify-start">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Notification Preferences
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={handleSignOut}
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        <BottomNav />
       </div>
-
-      <BottomNav />
-    </div>
+    </ProtectedRoute>
   )
 }
