@@ -1,8 +1,24 @@
+-- DESTRUCTIVE RESET - WARNING: This will delete the ENTIRE schema and ALL data
+-- Option 1: Drop and recreate the entire schema (most powerful reset)
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+GRANT ALL ON SCHEMA public TO postgres;
+GRANT ALL ON SCHEMA public TO public;
+
+-- Option 2: Alternative - Drop specific schema if using custom schema
+-- DROP SCHEMA IF EXISTS rideshare_app CASCADE;
+-- CREATE SCHEMA rideshare_app;
+
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Create custom types first
+CREATE TYPE exchange_category AS ENUM ('Concert Tickets', 'Dorm Items', 'Preprofessional Help', 'Food Truck Line Service');
+CREATE TYPE price_negotiability AS ENUM ('negotiable', 'non-negotiable');
+CREATE TYPE post_status AS ENUM ('active', 'inactive', 'expired');
+
 -- User profiles table
-CREATE TABLE IF NOT EXISTS user_profiles (
+CREATE TABLE user_profiles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   username VARCHAR(50) UNIQUE NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
@@ -13,7 +29,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 );
 
 -- Rideshare posts table
-CREATE TABLE IF NOT EXISTS rideshare_posts (
+CREATE TABLE rideshare_posts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   title VARCHAR(255) NOT NULL,
   description TEXT NOT NULL,
@@ -27,7 +43,7 @@ CREATE TABLE IF NOT EXISTS rideshare_posts (
 );
 
 -- Academic posts table
-CREATE TABLE IF NOT EXISTS academic_posts (
+CREATE TABLE academic_posts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   department VARCHAR(100) NOT NULL,
   course VARCHAR(100) NOT NULL,
@@ -42,33 +58,8 @@ CREATE TABLE IF NOT EXISTS academic_posts (
   file_type VARCHAR(50)
 );
 
--- Conversations table
-CREATE TABLE IF NOT EXISTS conversations (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  participant_1 UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-  participant_2 UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  last_message_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(participant_1, participant_2)
-);
-
--- Messages table
-CREATE TABLE IF NOT EXISTS messages (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-  sender_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
-  content TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  is_read BOOLEAN DEFAULT FALSE,
-  read_at TIMESTAMP WITH TIME ZONE
-);
-
 -- Exchange posts table
-CREATE TYPE exchange_category AS ENUM ('Concert Tickets', 'Dorm Items', 'Preprofessional Help', 'Food Truck Line Service');
-CREATE TYPE price_negotiability AS ENUM ('negotiable', 'non-negotiable');
-CREATE TYPE post_status AS ENUM ('active', 'inactive', 'expired');
-
-CREATE TABLE IF NOT EXISTS exchange_posts (
+CREATE TABLE exchange_posts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   title VARCHAR(255) NOT NULL,
   description TEXT NOT NULL,
@@ -83,6 +74,28 @@ CREATE TABLE IF NOT EXISTS exchange_posts (
   review_count INTEGER DEFAULT 0 CHECK (review_count >= 0),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Conversations table
+CREATE TABLE conversations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  participant_1 UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  participant_2 UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  last_message_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  CONSTRAINT participants_not_equal CHECK (participant_1 != participant_2),
+  CONSTRAINT unique_conversation UNIQUE(participant_1, participant_2)
+);
+
+-- Messages table
+CREATE TABLE messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  sender_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  is_read BOOLEAN DEFAULT FALSE,
+  read_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Function to automatically set expires_at based on duration_days
@@ -110,18 +123,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_rideshare_posts_user_id ON rideshare_posts(user_id);
-CREATE INDEX IF NOT EXISTS idx_rideshare_posts_departure_time ON rideshare_posts(departure_time);
-CREATE INDEX IF NOT EXISTS idx_academic_posts_user_id ON academic_posts(user_id);
-CREATE INDEX IF NOT EXISTS idx_academic_posts_department ON academic_posts(department);
-CREATE INDEX IF NOT EXISTS idx_academic_posts_course ON academic_posts(course);
-CREATE INDEX IF NOT EXISTS idx_conversations_participants ON conversations(participant_1, participant_2);
-CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
-CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
-CREATE INDEX IF NOT EXISTS idx_exchange_posts_user_id ON exchange_posts(user_id);
-CREATE INDEX IF NOT EXISTS idx_exchange_posts_category ON exchange_posts(category);
-CREATE INDEX IF NOT EXISTS idx_exchange_posts_status ON exchange_posts(status);
-CREATE INDEX IF NOT EXISTS idx_exchange_posts_expires_at ON exchange_posts(expires_at);
+CREATE INDEX idx_rideshare_posts_user_id ON rideshare_posts(user_id);
+CREATE INDEX idx_rideshare_posts_departure_time ON rideshare_posts(departure_time);
+CREATE INDEX idx_rideshare_posts_departure_location ON rideshare_posts(departure_location);
+CREATE INDEX idx_academic_posts_user_id ON academic_posts(user_id);
+CREATE INDEX idx_academic_posts_department ON academic_posts(department);
+CREATE INDEX idx_academic_posts_course ON academic_posts(course);
+CREATE INDEX idx_academic_posts_popularity ON academic_posts(popularity DESC);
+CREATE INDEX idx_conversations_participants ON conversations(participant_1, participant_2);
+CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
+CREATE INDEX idx_messages_sender_id ON messages(sender_id);
+CREATE INDEX idx_messages_created_at ON messages(created_at DESC);
+CREATE INDEX idx_exchange_posts_user_id ON exchange_posts(user_id);
+CREATE INDEX idx_exchange_posts_category ON exchange_posts(category);
+CREATE INDEX idx_exchange_posts_status ON exchange_posts(status);
+CREATE INDEX idx_exchange_posts_expires_at ON exchange_posts(expires_at);
 
 -- Row Level Security (RLS) policies
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
@@ -173,3 +189,20 @@ CREATE POLICY "Users can send messages in own conversations" ON messages FOR INS
     AND (conversations.participant_1 = auth.uid() OR conversations.participant_2 = auth.uid())
   )
 );
+
+-- Function to update conversation last_message_at when new message is added
+CREATE OR REPLACE FUNCTION update_conversation_last_message()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE conversations 
+  SET last_message_at = NEW.created_at 
+  WHERE id = NEW.conversation_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to update conversation timestamp
+CREATE TRIGGER update_conversation_last_message_trigger
+  AFTER INSERT ON messages
+  FOR EACH ROW
+  EXECUTE FUNCTION update_conversation_last_message();
