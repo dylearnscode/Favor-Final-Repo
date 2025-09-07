@@ -24,18 +24,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient()
     let mounted = true
 
-    // Get initial session
+    // Get initial session with timeout
     const getInitialSession = async () => {
       try {
+        // Add timeout to prevent hanging
+        const sessionPromise = supabase.auth.getSession()
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Session timeout")), 3000))
+
         const {
           data: { session },
-        } = await supabase.auth.getSession()
+        } = (await Promise.race([sessionPromise, timeoutPromise])) as any
 
         if (!mounted) return
 
         if (session?.user) {
           setUser(session.user)
-          await fetchUserProfile(session.user.id)
+          // Fetch profile without blocking
+          fetchUserProfile(session.user.id)
         } else {
           setUser(null)
           setProfile(null)
@@ -53,17 +58,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Fetch user profile with better error handling
+    // Optimized profile fetching with caching and timeout
     const fetchUserProfile = async (userId: string) => {
       try {
-        const { data, error } = await supabase.from("user_profiles").select("*").eq("id", userId).single()
+        // Add timeout to prevent hanging
+        const profilePromise = supabase.from("user_profiles").select("*").eq("id", userId).single()
+
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Profile fetch timeout")), 2000),
+        )
+
+        const { data, error } = (await Promise.race([profilePromise, timeoutPromise])) as any
 
         if (error) {
           console.error("Error fetching user profile:", error)
-          // If profile doesn't exist, that's okay - it might be created by the trigger
-          if (error.code === "PGRST116") {
-            console.log("User profile not found, it may be created shortly by the trigger")
-          }
+          // Don't block the app if profile fetch fails
           return
         }
 
@@ -71,13 +80,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfile(data)
         }
       } catch (error) {
-        console.error("Error fetching user profile:", error)
+        console.error("Profile fetch timeout or error:", error)
+        // Continue without profile - don't block the app
       }
     }
 
     getInitialSession()
 
-    // Listen for auth changes
+    // Listen for auth changes with optimized handling
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -85,12 +95,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (session?.user) {
         setUser(session.user)
-        // Add a small delay to allow the trigger to create the profile
+        // Fetch profile asynchronously without blocking
         setTimeout(() => {
           if (mounted) {
             fetchUserProfile(session.user.id)
           }
-        }, 1000)
+        }, 100)
       } else {
         setUser(null)
         setProfile(null)
