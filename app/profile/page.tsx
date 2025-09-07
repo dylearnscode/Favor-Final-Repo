@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Camera, Edit, Plus, MapPin, Calendar, Zap } from "lucide-react"
+import { Camera, Edit, Plus, MapPin, Calendar, LogOut } from "lucide-react"
 import { BottomNav } from "@/components/bottom-nav"
 import { useRouter } from "next/navigation"
 
@@ -69,6 +69,13 @@ export default function Profile() {
     }, 300)
   }
 
+  const handleChangeAccount = () => {
+    setIsSliding(true)
+    setTimeout(() => {
+      router.push("/auth/signin")
+    }, 300)
+  }
+
   const handleSaveProfile = () => {
     setIsEditing(false)
     // In real app, save to database
@@ -113,12 +120,14 @@ export default function Profile() {
       <div className="sticky top-0 bg-black/95 backdrop-blur-sm border-b border-gray-800 p-4 z-10 pt-safe">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold tracking-tight text-white">Profile</h1>
-          <Button variant="ghost" size="icon" className="text-white hover:bg-gray-800" onClick={handleMessagesClick}>
-            <div className="relative">
-              <div className="w-8 h-6 bg-gray-700 rounded-full flex items-center justify-center">
-                <Zap className="w-4 h-4 text-white" />
-              </div>
-            </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-white border-gray-600 hover:bg-gray-800 hover:border-gray-500 bg-transparent"
+            onClick={handleChangeAccount}
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Change Account
           </Button>
         </div>
       </div>
