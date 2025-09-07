@@ -1,334 +1,228 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Search, Plus, Star, Loader2 } from "lucide-react"
-import BottomNav from "@/components/bottom-nav"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Star, MessageCircle, RefreshCw } from "lucide-react"
+import { BottomNav } from "@/components/bottom-nav"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/components/auth-provider"
+import { useToast } from "@/hooks/use-toast"
 
-interface ServiceItem {
+interface ExchangePost {
   id: string
   title: string
   description: string
   price: number
   price_negotiability: "negotiable" | "non-negotiable"
   category: string
-  poster: string
-  rating?: number | null
-  review_count?: number
+  rating: number | null
+  review_count: number
   created_at: string
-  expires_at: string
+  user_profiles: {
+    id: string
+    username: string
+    full_name: string | null
+    avatar_url: string | null
+  }
 }
 
-const CATEGORIES = ["Concert Tickets", "Dorm Items", "Preprofessional Help", "Food Truck Line Service"]
+const categories = [
+  { id: "all", name: "All", icon: "🏠" },
+  { id: "Concert Tickets", name: "Concert Tickets", icon: "🎵" },
+  { id: "Dorm Items", name: "Dorm Items", icon: "🛏️" },
+  { id: "Preprofessional Help", name: "Preprofessional Help", icon: "💼" },
+  { id: "Food Truck Line Service", name: "Food Truck Line Service", icon: "🚚" },
+]
 
-export default function ExchangeMain() {
-  const router = useRouter()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [services, setServices] = useState<ServiceItem[]>([])
+export default function ExchangeMainPage() {
+  const [services, setServices] = useState<ExchangePost[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("all")
+  const [refreshing, setRefreshing] = useState(false)
 
-  const fetchServices = async (category?: string) => {
+  const router = useRouter()
+  const { user } = useAuth()
+  const { toast } = useToast()
+
+  const fetchServices = async (category = "all") => {
     try {
-      setLoading(true)
-      setError(null)
+      const url =
+        category === "all" ? "/api/exchange/posts" : `/api/exchange/posts?category=${encodeURIComponent(category)}`
 
-      const url = new URL("/api/exchange/posts", window.location.origin)
-      if (category) {
-        url.searchParams.set("category", category)
+      const response = await fetch(url)
+      const result = await response.json()
+
+      if (result.success) {
+        setServices(result.data)
+        setError("")
+      } else {
+        throw new Error(result.error || "Failed to fetch services")
       }
-
-      const response = await fetch(url.toString())
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch services")
-      }
-
-      const data = await response.json()
-      setServices(data)
     } catch (err) {
       console.error("Error fetching services:", err)
-      setError(err instanceof Error ? err.message : "Failed to load services")
+      setError(err instanceof Error ? err.message : "Failed to fetch services")
+      toast({
+        title: "Error loading services",
+        description: err instanceof Error ? err.message : "Failed to fetch services",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }
 
   useEffect(() => {
-    fetchServices(selectedCategory || undefined)
+    fetchServices(selectedCategory)
   }, [selectedCategory])
 
-  const filteredServices = services.filter((service) => {
-    const matchesSearch =
-      service.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.category.toLowerCase().includes(searchQuery.toLowerCase())
-
-    return matchesSearch
-  })
-
-  const handlePostClick = () => {
-    console.log("Post button clicked, navigating to /exchange/posts")
-    router.push("/exchange/posts")
-  }
-
-  const handleBruinBashClick = () => {
-    console.log("BruinBash clicked, navigating to specload")
-    router.push("/exchange/specials/specload")
-  }
-
-  const handleCategoryClick = (category: string) => {
-    const newCategory = selectedCategory === category ? null : category
-    setSelectedCategory(newCategory)
+  const handleCategoryClick = (categoryId: string) => {
+    setSelectedCategory(categoryId)
+    setLoading(true)
   }
 
   const handleRefresh = () => {
-    fetchServices(selectedCategory || undefined)
+    setRefreshing(true)
+    fetchServices(selectedCategory)
+  }
+
+  const formatPrice = (price: number, negotiability: string) => {
+    const formatted = `$${price.toFixed(2)}`
+    return negotiability === "negotiable" ? `${formatted} (negotiable)` : formatted
+  }
+
+  const formatRating = (rating: number | null, reviewCount: number) => {
+    if (rating === null || reviewCount === 0) {
+      return "No rating"
+    }
+    return `${rating.toFixed(1)} (${reviewCount} reviews)`
+  }
+
+  if (loading && !refreshing) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white border-b">
+          <div className="flex items-center justify-between p-4">
+            <h1 className="text-xl font-bold">Exchange</h1>
+            <Button onClick={() => router.push("/exchange/posts")} size="sm">
+              Post Service
+            </Button>
+          </div>
+        </div>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+        <BottomNav />
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-black text-white pb-20 safe-area-inset">
-      {/* Header with Search */}
-      <div className="sticky top-0 bg-black/95 backdrop-blur-sm border-b border-gray-800 p-4 z-10 pt-safe">
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <Input
-            placeholder="Search services, tutoring, tickets..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-gray-900 border-gray-700 text-white placeholder-gray-400 h-12 rounded-lg"
-          />
-        </div>
-
-        {/* Filter Options */}
-        <div className="flex items-center gap-3 mb-4">
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-full bg-gray-900 border-gray-700 text-white hover:bg-gray-800"
-          >
-            <span className="mr-2">💰</span>
-            Price
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-full bg-gray-900 border-gray-700 text-white hover:bg-gray-800"
-          >
-            Sort
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-full bg-gray-900 border-gray-700 text-white hover:bg-gray-800"
-          >
-            Top Rated
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            className="rounded-full bg-gray-900 border-gray-700 text-white hover:bg-gray-800"
-          >
-            Refresh
-          </Button>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b">
+        <div className="flex items-center justify-between p-4">
+          <h1 className="text-xl font-bold">Exchange</h1>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            </Button>
+            <Button onClick={() => router.push("/exchange/posts")} size="sm">
+              Post Service
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Category Filters */}
-      <div className="px-4 py-4">
-        <div className="flex justify-between items-center">
-          {CATEGORIES.map((category) => (
-            <div
-              key={category}
-              className="flex flex-col items-center cursor-pointer"
-              onClick={() => handleCategoryClick(category)}
+      <div className="bg-white border-b p-4">
+        <div className="flex gap-2 overflow-x-auto">
+          {categories.map((category) => (
+            <Button
+              key={category.id}
+              variant={selectedCategory === category.id ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleCategoryClick(category.id)}
+              className="whitespace-nowrap"
             >
-              <div
-                className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 p-2 transition-colors ${
-                  selectedCategory === category ? "bg-blue-600" : "bg-white hover:bg-gray-200"
-                }`}
-              >
-                <span className="text-2xl">
-                  {category === "Concert Tickets" && "🎫"}
-                  {category === "Dorm Items" && "🏠"}
-                  {category === "Preprofessional Help" && "💼"}
-                  {category === "Food Truck Line Service" && "🍽️"}
-                </span>
-              </div>
-              <span
-                className={`text-xs font-medium text-center ${
-                  selectedCategory === category ? "text-blue-400" : "text-gray-300"
-                }`}
-              >
-                {category}
-              </span>
-            </div>
+              <span className="mr-1">{category.icon}</span>
+              {category.name}
+            </Button>
           ))}
         </div>
       </div>
 
-      {/* Featured Service - BruinBash */}
-      <div className="px-4 py-2">
-        <Card
-          className="overflow-hidden shadow-sm border-gray-800 bg-gray-900 cursor-pointer hover:bg-gray-800 transition-all duration-200"
-          onClick={handleBruinBashClick}
-        >
-          <div className="relative">
-            <div className="h-48 overflow-hidden">
-              <img
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-tJPt0XsEADqwGKggB1EOq37NtDl8xm.png"
-                alt="BruinBash Concert"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="absolute top-3 right-3">
-              <Badge className="bg-blue-600 text-white">Sponsored</Badge>
-            </div>
-          </div>
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h3 className="font-bold text-lg text-white">BruinBash</h3>
-                <p className="text-gray-400 text-sm">$$ • Event Services</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-between text-sm text-gray-400">
-              <span>Available Now</span>
-              <div className="flex items-center gap-1">
-                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                <span className="text-white">4.8 (156)</span>
-              </div>
-              <span>$5 Service Fee</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Available Services Section */}
-      <div className="px-4 py-4">
-        <h2 className="text-xl font-bold mb-4 text-white">
-          Available Services
-          {selectedCategory && <span className="text-sm font-normal text-gray-400 ml-2">• {selectedCategory}</span>}
-        </h2>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-            <span className="ml-2 text-gray-400">Loading services...</span>
-          </div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">⚠️</span>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-400 mb-2">Error loading services</h3>
-            <p className="text-gray-500 mb-4">{error}</p>
-            <Button
-              variant="outline"
-              onClick={handleRefresh}
-              className="text-white border-gray-700 hover:bg-gray-800 bg-transparent"
-            >
-              Try Again
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredServices.map((service) => (
-              <Card
-                key={service.id}
-                className="overflow-hidden shadow-sm border-gray-800 bg-gray-900 hover:bg-gray-800 transition-all duration-200"
-              >
-                <CardContent className="p-0">
-                  <div className="flex">
-                    {/* Service Image/Icon */}
-                    <div className="w-24 h-24 bg-gray-800 flex items-center justify-center flex-shrink-0">
-                      <div className="text-2xl">
-                        {service.category === "Food Truck Line Service" && "🍽️"}
-                        {service.category === "Preprofessional Help" && "💼"}
-                        {service.category === "Concert Tickets" && "🎫"}
-                        {service.category === "Dorm Items" && "🏠"}
-                      </div>
-                    </div>
-
-                    {/* Service Details */}
-                    <div className="flex-1 p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-base mb-1 text-white">{service.title}</h3>
-                          <p className="text-gray-400 text-sm mb-2 line-clamp-2">{service.description}</p>
-
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span className="text-gray-400">By {service.poster}</span>
-                            {service.rating && service.review_count && service.review_count > 0 ? (
-                              <div className="flex items-center gap-1">
-                                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                                <span className="text-gray-400">
-                                  {service.rating} ({service.review_count})
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-gray-500">No rating</span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="text-right ml-4">
-                          <div className="font-bold text-lg text-white">${service.price.toFixed(2)}</div>
-                          <div className="text-xs text-gray-500">
-                            {service.price_negotiability === "negotiable" ? "Negotiable" : "Fixed"}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {!loading && !error && filteredServices.length === 0 && (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Search className="w-8 h-8 text-gray-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-400 mb-2">No services found</h3>
-            <p className="text-gray-500 mb-4">
-              {selectedCategory
-                ? `No services found in "${selectedCategory}". Try a different category or search term.`
-                : "Try adjusting your search or check back later"}
-            </p>
-            {selectedCategory && (
-              <Button
-                variant="outline"
-                onClick={() => setSelectedCategory(null)}
-                className="text-white border-gray-700 hover:bg-gray-800"
-              >
-                Clear Filter
+      {/* Services List */}
+      <div className="p-4 space-y-4">
+        {error && (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="p-4">
+              <p className="text-red-600 text-center">{error}</p>
+              <Button onClick={handleRefresh} variant="outline" size="sm" className="w-full mt-2 bg-transparent">
+                Try Again
               </Button>
-            )}
-          </div>
+            </CardContent>
+          </Card>
         )}
+
+        {!error && services.length === 0 && (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <p className="text-gray-500">No services found in this category</p>
+              <Button onClick={() => router.push("/exchange/posts")} className="mt-4">
+                Be the first to post!
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {services.map((service) => (
+          <Card key={service.id} className="hover:shadow-md transition-shadow">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={service.user_profiles.avatar_url || undefined} />
+                    <AvatarFallback>
+                      {service.user_profiles.full_name?.[0] || service.user_profiles.username[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium">{service.user_profiles.full_name || service.user_profiles.username}</p>
+                    <p className="text-sm text-gray-500">@{service.user_profiles.username}</p>
+                  </div>
+                </div>
+                <Badge variant="secondary">{service.category}</Badge>
+              </div>
+
+              <h3 className="font-semibold text-lg mb-2">{service.title}</h3>
+              <p className="text-gray-600 mb-3 line-clamp-2">{service.description}</p>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <span className="font-bold text-lg text-green-600">
+                    {formatPrice(service.price, service.price_negotiability)}
+                  </span>
+                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                    <Star className="h-4 w-4" />
+                    {formatRating(service.rating, service.review_count)}
+                  </div>
+                </div>
+                <Button size="sm" variant="outline">
+                  <MessageCircle className="h-4 w-4 mr-1" />
+                  Contact
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Floating Post Button */}
-      <div className="fixed bottom-24 right-6 z-50">
-        <Button
-          onClick={handlePostClick}
-          size="lg"
-          className="w-14 h-14 rounded-full bg-white text-black hover:bg-gray-200 shadow-lg hover:shadow-xl transition-all duration-200"
-        >
-          <Plus className="w-6 h-6" />
-        </Button>
-      </div>
-
-      <BottomNav activeTab="exchange" />
+      <BottomNav />
     </div>
   )
 }

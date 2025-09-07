@@ -1,341 +1,209 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Camera, Edit, Plus, MapPin, Calendar, LogOut } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Separator } from "@/components/ui/separator"
 import { BottomNav } from "@/components/bottom-nav"
+import { useAuth } from "@/components/auth-provider"
 import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
 
-interface Service {
-  id: string
-  title: string
-  price: string
-  category: string
-}
-
-interface FavorRelationship {
-  id: string
-  user_name: string
-  type: "owes_me" | "i_owe"
-  description: string
-}
-
-export default function Profile() {
+export default function ProfilePage() {
+  const { user, profile, loading, signOut } = useAuth()
   const router = useRouter()
-  const [isEditing, setIsEditing] = useState(false)
-  const [isSliding, setIsSliding] = useState(false)
-  const [showAddService, setShowAddService] = useState(false)
-  const [profileData, setProfileData] = useState({
-    name: "Alex Johnson",
-    bio: "UCLA Computer Science student. Love helping others with coding and math!",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-    location: "Westwood, CA",
-    joinDate: "September 2023",
-  })
+  const { toast } = useToast()
 
-  const [services, setServices] = useState<Service[]>([
-    { id: "1", title: "Python Tutoring", price: "$25/hr", category: "Education" },
-    { id: "2", title: "Resume Review", price: "$15", category: "Career" },
-    { id: "3", title: "Car Wash", price: "$20", category: "Services" },
-  ])
+  const [editing, setEditing] = useState(false)
+  const [fullName, setFullName] = useState("")
+  const [username, setUsername] = useState("")
 
-  const [favorRelationships] = useState<FavorRelationship[]>([
-    { id: "1", user_name: "Sarah K.", type: "owes_me", description: "helped with calculus homework" },
-    { id: "2", user_name: "Mike R.", type: "owes_me", description: "gave ride to airport" },
-    { id: "3", user_name: "Emma L.", type: "i_owe", description: "borrowed textbook" },
-    { id: "4", user_name: "David L.", type: "i_owe", description: "helped with coding project" },
-    { id: "5", user_name: "Jessica M.", type: "owes_me", description: "tutored in statistics" },
-  ])
+  useEffect(() => {
+    if (profile) {
+      setFullName(profile.full_name || "")
+      setUsername(profile.username || "")
+    }
+  }, [profile])
 
-  const [newService, setNewService] = useState({
-    title: "",
-    price: "",
-    category: "",
-  })
-
-  const handleMessagesClick = () => {
-    setIsSliding(true)
-    setTimeout(() => {
-      router.push("/messages")
-    }, 300)
-  }
-
-  const handleChangeAccount = () => {
-    setIsSliding(true)
-    setTimeout(() => {
-      router.push("/auth/signin")
-    }, 300)
-  }
-
-  const handleSaveProfile = () => {
-    setIsEditing(false)
-    // In real app, save to database
-  }
-
-  const handleAddService = () => {
-    if (newService.title && newService.price && newService.category) {
-      const service: Service = {
-        id: Date.now().toString(),
-        title: newService.title,
-        price: newService.price,
-        category: newService.category,
-      }
-      setServices([...services, service])
-      setNewService({ title: "", price: "", category: "" })
-      setShowAddService(false)
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      toast({
+        title: "Signed out successfully",
+        description: "You have been signed out of your account",
+      })
+      router.push("/")
+    } catch (error) {
+      toast({
+        title: "Error signing out",
+        description: "There was a problem signing out",
+        variant: "destructive",
+      })
     }
   }
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setProfileData((prev) => ({
-          ...prev,
-          avatar: e.target?.result as string,
-        }))
-      }
-      reader.readAsDataURL(file)
-    }
+  const handleSave = async () => {
+    // TODO: Implement profile update API
+    setEditing(false)
+    toast({
+      title: "Profile updated",
+      description: "Your profile has been updated successfully",
+    })
   }
 
-  const owesMe = favorRelationships.filter((rel) => rel.type === "owes_me")
-  const iOwe = favorRelationships.filter((rel) => rel.type === "i_owe")
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+        <BottomNav />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="p-4">
+          <Card>
+            <CardContent className="p-8 text-center">
+              <p className="text-gray-500 mb-4">Please sign in to view your profile</p>
+              <Button onClick={() => router.push("/auth/signin")}>Sign In</Button>
+            </CardContent>
+          </Card>
+        </div>
+        <BottomNav />
+      </div>
+    )
+  }
 
   return (
-    <div
-      className={`min-h-screen bg-black text-white pb-20 safe-area-inset transition-transform duration-300 ${isSliding ? "translate-x-full" : ""}`}
-    >
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="sticky top-0 bg-black/95 backdrop-blur-sm border-b border-gray-800 p-4 z-10 pt-safe">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight text-white">Profile</h1>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-white border-gray-600 hover:bg-gray-800 hover:border-gray-500 bg-transparent"
-            onClick={handleChangeAccount}
-          >
-            <LogOut className="w-4 h-4 mr-2" />
+      <div className="bg-white border-b">
+        <div className="flex items-center justify-between p-4">
+          <h1 className="text-xl font-bold">Profile</h1>
+          <Button variant="outline" size="sm" onClick={() => router.push("/auth/signin")}>
             Change Account
           </Button>
         </div>
       </div>
 
       <div className="p-4 space-y-6">
-        {/* Profile Section */}
-        <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4 mb-4">
-              <div className="relative">
-                <Avatar className="w-20 h-20">
-                  <AvatarImage src={profileData.avatar || "/placeholder.svg"} />
-                  <AvatarFallback className="bg-gray-700 text-white text-xl font-bold">
-                    {profileData.name.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                {isEditing && (
-                  <label className="absolute -bottom-2 -right-2 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors">
-                    <Camera className="w-4 h-4 text-white" />
-                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                  </label>
-                )}
+        {/* Profile Info */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Profile Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-20 w-20">
+                <AvatarImage src={profile?.avatar_url || undefined} />
+                <AvatarFallback className="text-lg">
+                  {profile?.full_name?.[0] || profile?.username?.[0] || user.email?.[0]}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <h2 className="text-xl font-semibold">{profile?.full_name || "No name set"}</h2>
+                <p className="text-gray-600">@{profile?.username || "No username"}</p>
+                <p className="text-sm text-gray-500">{user.email}</p>
               </div>
+            </div>
 
-              <div className="flex-1 min-w-0">
-                {isEditing ? (
-                  <div className="space-y-3">
-                    <Input
-                      value={profileData.name}
-                      onChange={(e) => setProfileData((prev) => ({ ...prev, name: e.target.value }))}
-                      className="bg-gray-800 border-gray-700 text-white font-bold text-lg"
-                    />
-                    <Textarea
-                      value={profileData.bio}
-                      onChange={(e) => setProfileData((prev) => ({ ...prev, bio: e.target.value }))}
-                      className="bg-gray-800 border-gray-700 text-white resize-none"
-                      rows={3}
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <h2 className="text-xl font-bold text-white mb-2">{profileData.name}</h2>
-                    <p className="text-gray-300 mb-3">{profileData.bio}</p>
-                  </div>
-                )}
+            <Separator />
 
-                <div className="flex items-center gap-4 text-sm text-gray-400 mb-4">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    <span>{profileData.location}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    <span>Joined {profileData.joinDate}</span>
-                  </div>
+            {editing ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input
+                    id="fullName"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Enter your full name"
+                  />
                 </div>
-
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter your username"
+                  />
+                </div>
                 <div className="flex gap-2">
-                  {isEditing ? (
-                    <>
-                      <Button onClick={handleSaveProfile} className="bg-blue-600 hover:bg-blue-700 text-white">
-                        Save Changes
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={() => setIsEditing(false)}
-                        className="text-gray-400 hover:text-white"
-                      >
-                        Cancel
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      onClick={() => setIsEditing(true)}
-                      className="bg-white text-black hover:bg-gray-200 font-bold"
-                    >
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit Profile
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Favor Network */}
-        <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
-            <h3 className="text-lg font-bold text-white mb-4">Favor Network</h3>
-
-            {/* People who owe me favors */}
-            <div className="mb-4">
-              <h4 className="text-sm font-medium text-gray-400 mb-2">People who owe you favors</h4>
-              <div className="flex flex-wrap gap-2">
-                {owesMe.map((relationship) => (
-                  <div
-                    key={relationship.id}
-                    className="flex items-center gap-2 bg-green-900/30 border border-green-800 rounded-full px-3 py-1"
-                  >
-                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                    <span className="text-sm text-green-300 font-medium">{relationship.user_name}</span>
-                    <span className="text-xs text-green-400">({relationship.description})</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* People I owe favors to */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-400 mb-2">People you owe favors to</h4>
-              <div className="flex flex-wrap gap-2">
-                {iOwe.map((relationship) => (
-                  <div
-                    key={relationship.id}
-                    className="flex items-center gap-2 bg-orange-900/30 border border-orange-800 rounded-full px-3 py-1"
-                  >
-                    <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
-                    <span className="text-sm text-orange-300 font-medium">{relationship.user_name}</span>
-                    <span className="text-xs text-orange-400">({relationship.description})</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Services */}
-        <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">My Services</h3>
-              <Dialog open={showAddService} onOpenChange={setShowAddService}>
-                <DialogTrigger asChild>
-                  <Button className="bg-white text-black hover:bg-gray-200 font-bold">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Service
+                  <Button onClick={handleSave}>Save Changes</Button>
+                  <Button variant="outline" onClick={() => setEditing(false)}>
+                    Cancel
                   </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-gray-900 border-gray-700 text-white">
-                  <DialogHeader>
-                    <DialogTitle className="text-white">Add New Service</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-gray-300">Service Title</Label>
-                      <Input
-                        value={newService.title}
-                        onChange={(e) => setNewService((prev) => ({ ...prev, title: e.target.value }))}
-                        placeholder="e.g., Math Tutoring"
-                        className="bg-gray-800 border-gray-700 text-white"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-gray-300">Price</Label>
-                      <Input
-                        value={newService.price}
-                        onChange={(e) => setNewService((prev) => ({ ...prev, price: e.target.value }))}
-                        placeholder="e.g., $25/hr"
-                        className="bg-gray-800 border-gray-700 text-white"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-gray-300">Category</Label>
-                      <Input
-                        value={newService.category}
-                        onChange={(e) => setNewService((prev) => ({ ...prev, category: e.target.value }))}
-                        placeholder="e.g., Education"
-                        className="bg-gray-800 border-gray-700 text-white"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button onClick={handleAddService} className="bg-blue-600 hover:bg-blue-700 text-white flex-1">
-                        Add Service
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        onClick={() => setShowAddService(false)}
-                        className="text-gray-400 hover:text-white"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <div className="grid gap-3">
-              {services.map((service) => (
-                <div key={service.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-white">{service.title}</h4>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge className="bg-blue-900/50 text-blue-300 text-xs">{service.category}</Badge>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-white">{service.price}</div>
-                  </div>
                 </div>
-              ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <Label>Full Name</Label>
+                  <p className="text-sm text-gray-600 mt-1">{profile?.full_name || "Not set"}</p>
+                </div>
+                <div>
+                  <Label>Username</Label>
+                  <p className="text-sm text-gray-600 mt-1">{profile?.username || "Not set"}</p>
+                </div>
+                <Button variant="outline" onClick={() => setEditing(true)}>
+                  Edit Profile
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Account Stats */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Account Stats</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-2xl font-bold">0</p>
+                <p className="text-sm text-gray-500">Services Posted</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold">0</p>
+                <p className="text-sm text-gray-500">Transactions</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold">-</p>
+                <p className="text-sm text-gray-500">Rating</p>
+              </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Account Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Account</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button variant="outline" className="w-full justify-start bg-transparent">
+              Settings
+            </Button>
+            <Button variant="outline" className="w-full justify-start bg-transparent">
+              Help & Support
+            </Button>
+            <Button variant="destructive" className="w-full justify-start" onClick={handleSignOut}>
+              Sign Out
+            </Button>
           </CardContent>
         </Card>
       </div>
 
-      <BottomNav activeTab="profile" />
+      <BottomNav />
     </div>
   )
 }
