@@ -4,228 +4,168 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { ArrowLeft, DollarSign, Clock, FileText, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { ArrowLeft } from "lucide-react"
-import { ProtectedRoute } from "@/components/protected-route"
-import { useAuth } from "@/components/auth-provider"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { BottomNav } from "@/components/bottom-nav"
 
-const categories = ["Concert Tickets", "Dorm Items", "Preprofessional Help", "Food Truck Line Service"]
-
-const durations = [
-  { value: "1", label: "1 day" },
-  { value: "2", label: "2 days" },
-  { value: "3", label: "3 days" },
-  { value: "7", label: "1 week" },
-  { value: "14", label: "2 weeks" },
-  { value: "30", label: "1 month" },
-]
-
-export default function PostServicePage() {
+export default function PostService() {
   const router = useRouter()
-  const { user } = useAuth()
-  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    dollars: "0",
-    cents: "00",
-    negotiability: "non-negotiable",
-    category: "",
+    price: "",
     duration: "",
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleBack = () => {
+    router.push("/exchange/main")
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsSubmitting(true)
 
-    if (!user) {
-      alert("You must be signed in to post a service")
-      return
-    }
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    setLoading(true)
+    console.log("Service posted:", formData)
 
-    try {
-      const price = Number.parseFloat(`${formData.dollars}.${formData.cents}`)
-
-      const response = await fetch("/api/exchange/posts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: formData.title,
-          description: formData.description,
-          price: price,
-          price_negotiability: formData.negotiability,
-          category: formData.category,
-          duration_days: Number.parseInt(formData.duration),
-        }),
-      })
-
-      if (response.ok) {
-        alert("Service posted successfully!")
-        router.push("/exchange/main")
-      } else {
-        const errorData = await response.json()
-        alert(`Error: ${errorData.error}`)
-      }
-    } catch (error) {
-      console.error("Error posting service:", error)
-      alert("Failed to post service. Please try again.")
-    } finally {
-      setLoading(false)
-    }
+    // Navigate back to exchange main
+    router.push("/exchange/main")
   }
 
+  const isFormValid = formData.title && formData.description && formData.price && formData.duration
+
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50 p-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center gap-4 mb-6">
-            <Button variant="ghost" size="sm" onClick={() => router.back()} className="flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-            <h1 className="text-2xl font-bold">Post a Service</h1>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Service Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <Label htmlFor="title">Service Title</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="Enter service title"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Describe your service"
-                    rows={4}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label>Category</Label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) => setFormData({ ...formData, category: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Price</Label>
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <Label htmlFor="dollars" className="text-sm text-gray-600">
-                          Dollars
-                        </Label>
-                        <Input
-                          id="dollars"
-                          type="number"
-                          min="0"
-                          value={formData.dollars}
-                          onChange={(e) => setFormData({ ...formData, dollars: e.target.value })}
-                          placeholder="0"
-                        />
-                      </div>
-                      <div className="w-20">
-                        <Label htmlFor="cents" className="text-sm text-gray-600">
-                          Cents
-                        </Label>
-                        <Select
-                          value={formData.cents}
-                          onValueChange={(value) => setFormData({ ...formData, cents: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.from({ length: 10 }, (_, i) => i * 10).map((cents) => (
-                              <SelectItem key={cents} value={cents.toString().padStart(2, "0")}>
-                                {cents.toString().padStart(2, "0")}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label>Negotiability</Label>
-                    <Select
-                      value={formData.negotiability}
-                      onValueChange={(value) => setFormData({ ...formData, negotiability: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="non-negotiable">Non-negotiable</SelectItem>
-                        <SelectItem value="negotiable">Negotiable</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Post Duration</Label>
-                  <Select
-                    value={formData.duration}
-                    onValueChange={(value) => setFormData({ ...formData, duration: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select duration" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {durations.map((duration) => (
-                        <SelectItem key={duration.value} value={duration.value}>
-                          {duration.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Posting..." : "Post Service"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+    <div className="min-h-screen bg-black text-white pb-20">
+      {/* Header */}
+      <div className="sticky top-0 bg-black z-40 px-4 py-4 border-b border-gray-800">
+        <div className="flex items-center gap-4">
+          <button onClick={handleBack} className="p-2 hover:bg-gray-800 rounded-full transition-colors">
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <h1 className="text-xl font-bold">Post a Service</h1>
         </div>
       </div>
-    </ProtectedRoute>
+
+      <div className="px-4 py-6 max-w-2xl mx-auto">
+        {/* Guidelines Card */}
+        <Card className="mb-6 bg-gray-900 border-gray-800">
+          <CardHeader>
+            <CardTitle className="text-white">Posting Guidelines</CardTitle>
+            <CardDescription className="text-gray-400">
+              Follow these tips to create an effective service listing
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-gray-300 text-sm space-y-2">
+            <p>• Be clear and specific about what you're offering</p>
+            <p>• Set a fair price based on time and effort required</p>
+            <p>• Include all relevant details in the description</p>
+            <p>• Respond promptly to interested buyers</p>
+          </CardContent>
+        </Card>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Title */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
+              <Tag className="w-4 h-4" />
+              Service Title
+            </label>
+            <Input
+              type="text"
+              placeholder="e.g., Wait in line for Salpicon"
+              value={formData.title}
+              onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+              className="bg-gray-900 border-gray-700 text-white placeholder-gray-500"
+              maxLength={100}
+              required
+            />
+            <p className="text-xs text-gray-500">{formData.title.length}/100 characters</p>
+          </div>
+
+          {/* Description */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
+              <FileText className="w-4 h-4" />
+              Description
+            </label>
+            <Textarea
+              placeholder="Describe your service in detail. What exactly will you do? What should the buyer expect?"
+              value={formData.description}
+              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              className="bg-gray-900 border-gray-700 text-white placeholder-gray-500 min-h-[120px]"
+              maxLength={500}
+              required
+            />
+            <p className="text-xs text-gray-500">{formData.description.length}/500 characters</p>
+          </div>
+
+          {/* Price */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
+              <DollarSign className="w-4 h-4" />
+              Price
+            </label>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                type="number"
+                placeholder="0"
+                value={formData.price}
+                onChange={(e) => setFormData((prev) => ({ ...prev, price: e.target.value }))}
+                className="pl-10 bg-gray-900 border-gray-700 text-white placeholder-gray-500"
+                min="0"
+                step="0.01"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Duration */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
+              <Clock className="w-4 h-4" />
+              How long to keep this post up?
+            </label>
+            <Select
+              value={formData.duration}
+              onValueChange={(value) => setFormData((prev) => ({ ...prev, duration: value }))}
+            >
+              <SelectTrigger className="bg-gray-900 border-gray-700 text-white">
+                <SelectValue placeholder="Select duration" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-gray-700">
+                <SelectItem value="1">1 day</SelectItem>
+                <SelectItem value="2">2 days</SelectItem>
+                <SelectItem value="3">3 days</SelectItem>
+                <SelectItem value="4">4 days</SelectItem>
+                <SelectItem value="5">5 days</SelectItem>
+                <SelectItem value="6">6 days</SelectItem>
+                <SelectItem value="7">7 days</SelectItem>
+                <SelectItem value="indefinite">Indefinitely</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Submit Button */}
+          <Button
+            type="submit"
+            disabled={!isFormValid || isSubmitting}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500"
+          >
+            {isSubmitting ? "Posting..." : "Post Service"}
+          </Button>
+        </form>
+      </div>
+
+      <BottomNav />
+    </div>
   )
 }

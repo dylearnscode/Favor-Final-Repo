@@ -4,123 +4,159 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useAuth } from "@/components/auth-provider"
-import { toast } from "sonner"
+import { createClient } from "@/lib/supabase"
 
 interface AuthFormProps {
   mode: "signin" | "signup"
 }
 
 export function AuthForm({ mode }: AuthFormProps) {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [fullName, setFullName] = useState("")
-  const [loading, setLoading] = useState(false)
-  const { signIn, signUp } = useAuth()
   const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+    fullName: "",
+    confirmPassword: "",
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
-      let result
-      if (mode === "signin") {
-        result = await signIn(email, password)
-      } else {
-        result = await signUp(email, password, fullName)
-      }
+      const supabase = createClient()
 
-      if (result.error) {
-        toast.error(result.error.message)
-      } else {
-        if (mode === "signin") {
-          toast.success("Signed in successfully!")
-          router.push("/")
+      if (mode === "signup") {
+        if (formData.password !== formData.confirmPassword) {
+          alert("Passwords do not match")
+          return
+        }
+
+        const { error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: {
+            data: {
+              full_name: formData.fullName,
+            },
+          },
+        })
+
+        if (error) {
+          alert(`Error: ${error.message}`)
         } else {
-          toast.success("Account created! Please check your email to verify your account.")
+          alert("Check your email for the confirmation link!")
+          router.push("/auth/signin")
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        })
+
+        if (error) {
+          alert(`Error: ${error.message}`)
+        } else {
+          router.push("/exchange/main")
         }
       }
     } catch (error) {
-      toast.error("An unexpected error occurred")
+      console.error("Auth error:", error)
+      alert("An error occurred")
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            {mode === "signin" ? "Sign In" : "Create Account"}
-          </CardTitle>
+        <CardHeader>
+          <CardTitle className="text-2xl text-center">{mode === "signin" ? "Sign In" : "Sign Up"}</CardTitle>
           <CardDescription className="text-center">
-            {mode === "signin"
-              ? "Enter your credentials to access your account"
-              : "Enter your information to create a new account"}
+            {mode === "signin" ? "Welcome back to Favor" : "Create your Favor account"}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === "signup" && (
-              <div className="space-y-2">
+              <div>
                 <Label htmlFor="fullName">Full Name</Label>
                 <Input
                   id="fullName"
                   type="text"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   placeholder="Enter your full name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
                   required
                 />
               </div>
             )}
 
-            <div className="space-y-2">
+            <div>
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
 
-            <div className="space-y-2">
+            <div>
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
               />
             </div>
 
+            {mode === "signup" && (
+              <div>
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  placeholder="Confirm your password"
+                  required
+                />
+              </div>
+            )}
+
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Loading..." : mode === "signin" ? "Sign In" : "Create Account"}
+              {loading
+                ? mode === "signin"
+                  ? "Signing in..."
+                  : "Creating account..."
+                : mode === "signin"
+                  ? "Sign In"
+                  : "Sign Up"}
             </Button>
           </form>
 
           <div className="mt-4 text-center">
             <p className="text-sm text-gray-600">
               {mode === "signin" ? "Don't have an account? " : "Already have an account? "}
-              <Button
-                variant="link"
-                className="p-0 h-auto font-normal"
-                onClick={() => router.push(mode === "signin" ? "/auth/signup" : "/auth/signin")}
+              <Link
+                href={mode === "signin" ? "/auth/signup" : "/auth/signin"}
+                className="text-blue-600 hover:underline"
               >
                 {mode === "signin" ? "Sign up" : "Sign in"}
-              </Button>
+              </Link>
             </p>
           </div>
         </CardContent>

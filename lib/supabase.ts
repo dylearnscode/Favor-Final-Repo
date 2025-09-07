@@ -7,7 +7,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase environment variables")
 }
 
-export const createClient = () => {
+export function createClient() {
   return createSupabaseClient(supabaseUrl, supabaseAnonKey)
 }
 
@@ -32,14 +32,15 @@ export interface ExchangePost {
   description: string
   price: number
   price_negotiability: "negotiable" | "non-negotiable"
-  category: "Concert Tickets" | "Dorm Items" | "Preprofessional Help" | "Food Truck Line Service"
+  category: string
   duration_days: number
   expires_at: string
   status: "active" | "inactive" | "completed"
   rating?: number
-  review_count?: number
+  review_count: number
   created_at: string
   updated_at: string
+  user_profiles?: UserProfile
 }
 
 export type Database = {
@@ -84,7 +85,7 @@ export type Database = {
           description: string
           price: number
           price_negotiability: "negotiable" | "non-negotiable"
-          category: "Concert Tickets" | "Dorm Items" | "Preprofessional Help" | "Food Truck Line Service"
+          category: string
           duration_days: number
           expires_at: string
           status: "active" | "inactive" | "completed"
@@ -92,6 +93,7 @@ export type Database = {
           review_count: number
           created_at: string
           updated_at: string
+          user_profiles?: UserProfile
         }
         Insert: {
           id?: string
@@ -100,7 +102,7 @@ export type Database = {
           description: string
           price: number
           price_negotiability?: "negotiable" | "non-negotiable"
-          category: "Concert Tickets" | "Dorm Items" | "Preprofessional Help" | "Food Truck Line Service"
+          category: string
           duration_days: number
           expires_at?: string
           status?: "active" | "inactive" | "completed"
@@ -116,7 +118,7 @@ export type Database = {
           description?: string
           price?: number
           price_negotiability?: "negotiable" | "non-negotiable"
-          category?: "Concert Tickets" | "Dorm Items" | "Preprofessional Help" | "Food Truck Line Service"
+          category?: string
           duration_days?: number
           expires_at?: string
           status?: "active" | "inactive" | "completed"
