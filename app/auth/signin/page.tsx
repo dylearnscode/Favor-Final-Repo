@@ -4,13 +4,12 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase"
-import { toast } from "sonner"
+import Link from "next/link"
 
 export default function SignInPage() {
   const router = useRouter()
@@ -32,48 +31,46 @@ export default function SignInPage() {
       })
 
       if (error) {
-        toast.error(error.message)
-        return
+        alert(`Error: ${error.message}`)
+      } else {
+        router.push("/exchange/main")
       }
-
-      toast.success("Signed in successfully!")
-      router.push("/exchange/main")
     } catch (error) {
-      toast.error("An unexpected error occurred")
+      console.error("Sign in error:", error)
+      alert("An error occurred during sign in")
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
-          <CardDescription>Sign in to your Favor account</CardDescription>
+        <CardHeader>
+          <CardTitle className="text-2xl text-center">Sign In</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
+            <div>
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="your.email@ucla.edu"
                 value={formData.email}
-                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="Enter your email"
                 required
               />
             </div>
 
-            <div className="space-y-2">
+            <div>
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
                 value={formData.password}
-                onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="Enter your password"
                 required
               />
             </div>
@@ -83,10 +80,10 @@ export default function SignInPage() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-4 text-center">
             <p className="text-sm text-gray-600">
               Don't have an account?{" "}
-              <Link href="/auth/signup" className="text-blue-600 hover:underline font-medium">
+              <Link href="/auth/signup" className="text-blue-600 hover:underline">
                 Sign up
               </Link>
             </p>

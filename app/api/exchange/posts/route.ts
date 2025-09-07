@@ -12,7 +12,6 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         user_profiles (
-          id,
           username,
           full_name,
           avatar_url
@@ -22,7 +21,7 @@ export async function GET(request: NextRequest) {
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
 
-    if (category) {
+    if (category && category !== "all") {
       query = query.eq("category", category)
     }
 
@@ -30,10 +29,10 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Error fetching exchange posts:", error)
-      return NextResponse.json({ error: "Failed to fetch exchange posts" }, { status: 500 })
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(data || [])
+    return NextResponse.json({ posts: data || [] })
   } catch (error) {
     console.error("Error in GET /api/exchange/posts:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -44,7 +43,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createClient()
 
-    // Get the authenticated user
+    // Get the current user
     const {
       data: { user },
       error: authError,
@@ -55,40 +54,34 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, price, price_negotiability = "non-negotiable", category, duration_days } = body
+    const { title, description, price, price_negotiability, category, duration_days } = body
 
     // Validate required fields
-    if (!title || !description || price === undefined || !category || !duration_days) {
+    if (!title || !description || !price || !category || !duration_days) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    // Calculate expiration date
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + Number.parseInt(duration_days))
-
+    // Insert the exchange post
     const { data, error } = await supabase
       .from("exchange_posts")
       .insert({
         title,
         description,
         price: Number.parseFloat(price),
-        price_negotiability,
+        price_negotiability: price_negotiability || "non-negotiable",
         category,
         duration_days: Number.parseInt(duration_days),
-        expires_at: expiresAt.toISOString(),
         user_id: user.id,
-        status: "active",
-        review_count: 0,
       })
       .select()
       .single()
 
     if (error) {
       console.error("Error creating exchange post:", error)
-      return NextResponse.json({ error: "Failed to create exchange post" }, { status: 500 })
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json({ post: data }, { status: 201 })
   } catch (error) {
     console.error("Error in POST /api/exchange/posts:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

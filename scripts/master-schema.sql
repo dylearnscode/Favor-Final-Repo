@@ -42,24 +42,36 @@ CREATE INDEX IF NOT EXISTS idx_exchange_posts_created_at ON public.exchange_post
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.exchange_posts ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for user_profiles
-CREATE POLICY "Users can view all profiles" ON public.user_profiles
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view all profiles" ON public.user_profiles;
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.user_profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.user_profiles;
+DROP POLICY IF EXISTS "Anyone can view active exchange posts" ON public.exchange_posts;
+DROP POLICY IF EXISTS "Users can insert their own exchange posts" ON public.exchange_posts;
+DROP POLICY IF EXISTS "Users can update their own exchange posts" ON public.exchange_posts;
+DROP POLICY IF EXISTS "Users can delete their own exchange posts" ON public.exchange_posts;
+
+-- RLS Policies for user_profiles - Allow all authenticated users to read profiles
+CREATE POLICY "Enable read access for all users" ON public.user_profiles
     FOR SELECT USING (true);
 
-CREATE POLICY "Users can update own profile" ON public.user_profiles
+CREATE POLICY "Enable insert for authenticated users only" ON public.user_profiles
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Enable update for users based on user_id" ON public.user_profiles
     FOR UPDATE USING (auth.uid() = id);
 
 -- RLS Policies for exchange_posts
-CREATE POLICY "Anyone can view active exchange posts" ON public.exchange_posts
-    FOR SELECT USING (status = 'active' AND expires_at > NOW());
+CREATE POLICY "Enable read access for all users" ON public.exchange_posts
+    FOR SELECT USING (true);
 
-CREATE POLICY "Users can insert their own exchange posts" ON public.exchange_posts
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Enable insert for authenticated users only" ON public.exchange_posts
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated' AND auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own exchange posts" ON public.exchange_posts
+CREATE POLICY "Enable update for users based on user_id" ON public.exchange_posts
     FOR UPDATE USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can delete their own exchange posts" ON public.exchange_posts
+CREATE POLICY "Enable delete for users based on user_id" ON public.exchange_posts
     FOR DELETE USING (auth.uid() = user_id);
 
 -- Function to handle automatic user profile creation
@@ -98,5 +110,17 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create a scheduled job to run cleanup (if pg_cron is available)
--- SELECT cron.schedule('cleanup-expired-posts', '0 * * * *', 'SELECT public.cleanup_expired_posts();');
+-- Function to set expires_at automatically
+CREATE OR REPLACE FUNCTION public.set_expires_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.expires_at = NEW.created_at + (NEW.duration_days || ' days')::INTERVAL;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to set expires_at on insert
+DROP TRIGGER IF EXISTS set_expires_at_trigger ON public.exchange_posts;
+CREATE TRIGGER set_expires_at_trigger
+    BEFORE INSERT ON public.exchange_posts
+    FOR EACH ROW EXECUTE FUNCTION public.set_expires_at();

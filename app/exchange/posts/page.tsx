@@ -10,25 +10,43 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, DollarSign } from "lucide-react"
-import { toast } from "sonner"
+import { ArrowLeft } from "lucide-react"
 import { ProtectedRoute } from "@/components/protected-route"
+import { useAuth } from "@/components/auth-provider"
+
+const categories = ["Concert Tickets", "Dorm Items", "Preprofessional Help", "Food Truck Line Service"]
+
+const durations = [
+  { value: "1", label: "1 day" },
+  { value: "2", label: "2 days" },
+  { value: "3", label: "3 days" },
+  { value: "7", label: "1 week" },
+  { value: "14", label: "2 weeks" },
+  { value: "30", label: "1 month" },
+]
 
 export default function PostServicePage() {
   const router = useRouter()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     dollars: "0",
     cents: "00",
-    price_negotiability: "non-negotiable",
+    negotiability: "non-negotiable",
     category: "",
-    duration_days: "1",
+    duration: "",
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!user) {
+      alert("You must be signed in to post a service")
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -42,150 +60,160 @@ export default function PostServicePage() {
         body: JSON.stringify({
           title: formData.title,
           description: formData.description,
-          price,
-          price_negotiability: formData.price_negotiability,
+          price: price,
+          price_negotiability: formData.negotiability,
           category: formData.category,
-          duration_days: Number.parseInt(formData.duration_days),
+          duration_days: Number.parseInt(formData.duration),
         }),
       })
 
-      if (!response.ok) {
+      if (response.ok) {
+        alert("Service posted successfully!")
+        router.push("/exchange/main")
+      } else {
         const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to create post")
+        alert(`Error: ${errorData.error}`)
       }
-
-      toast.success("Service posted successfully!")
-      router.push("/exchange/main")
     } catch (error) {
-      console.error("Error creating post:", error)
-      toast.error(error instanceof Error ? error.message : "Failed to create post")
+      console.error("Error posting service:", error)
+      alert("Failed to post service. Please try again.")
     } finally {
       setLoading(false)
     }
   }
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
-
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="min-h-screen bg-gray-50 p-4">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center gap-4 mb-6">
-            <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
-              <ArrowLeft className="h-5 w-5" />
+            <Button variant="ghost" size="sm" onClick={() => router.back()} className="flex items-center gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Back
             </Button>
-            <h1 className="text-2xl font-bold text-gray-900">Post a Service</h1>
+            <h1 className="text-2xl font-bold">Post a Service</h1>
           </div>
 
-          <Card className="shadow-lg">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-xl text-center">Create Your Service Listing</CardTitle>
+              <CardTitle>Service Details</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
+                <div>
                   <Label htmlFor="title">Service Title</Label>
                   <Input
                     id="title"
-                    placeholder="e.g., Concert Ticket for Taylor Swift"
                     value={formData.title}
-                    onChange={(e) => handleInputChange("title", e.target.value)}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="Enter service title"
                     required
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) => handleInputChange("category", value)}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Concert Tickets">Concert Tickets</SelectItem>
-                      <SelectItem value="Dorm Items">Dorm Items</SelectItem>
-                      <SelectItem value="Preprofessional Help">Preprofessional Help</SelectItem>
-                      <SelectItem value="Food Truck Line Service">Food Truck Line Service</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
+                <div>
                   <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
-                    placeholder="Describe your service in detail..."
                     value={formData.description}
-                    onChange={(e) => handleInputChange("description", e.target.value)}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Describe your service"
                     rows={4}
                     required
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Price</Label>
-                  <div className="flex gap-2 items-center">
-                    <div className="flex items-center">
-                      <DollarSign className="h-4 w-4 text-gray-500" />
-                      <Input
-                        type="number"
-                        min="0"
-                        max="999"
-                        value={formData.dollars}
-                        onChange={(e) => handleInputChange("dollars", e.target.value)}
-                        className="w-20 text-center"
-                        required
-                      />
+                <div>
+                  <Label>Category</Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Price</Label>
+                    <div className="flex gap-2">
+                      <div className="flex-1">
+                        <Label htmlFor="dollars" className="text-sm text-gray-600">
+                          Dollars
+                        </Label>
+                        <Input
+                          id="dollars"
+                          type="number"
+                          min="0"
+                          value={formData.dollars}
+                          onChange={(e) => setFormData({ ...formData, dollars: e.target.value })}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="w-20">
+                        <Label htmlFor="cents" className="text-sm text-gray-600">
+                          Cents
+                        </Label>
+                        <Select
+                          value={formData.cents}
+                          onValueChange={(value) => setFormData({ ...formData, cents: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 10 }, (_, i) => i * 10).map((cents) => (
+                              <SelectItem key={cents} value={cents.toString().padStart(2, "0")}>
+                                {cents.toString().padStart(2, "0")}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <span className="text-gray-500">.</span>
-                    <Select value={formData.cents} onValueChange={(value) => handleInputChange("cents", value)}>
-                      <SelectTrigger className="w-20">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 10 }, (_, i) => (
-                          <SelectItem key={i} value={`${i}0`}>
-                            {i}0
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Negotiability</Label>
                     <Select
-                      value={formData.price_negotiability}
-                      onValueChange={(value) => handleInputChange("price_negotiability", value)}
+                      value={formData.negotiability}
+                      onValueChange={(value) => setFormData({ ...formData, negotiability: value })}
                     >
-                      <SelectTrigger className="w-32">
+                      <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="non-negotiable">Fixed</SelectItem>
+                        <SelectItem value="non-negotiable">Non-negotiable</SelectItem>
                         <SelectItem value="negotiable">Negotiable</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="duration">Post Duration</Label>
+                <div>
+                  <Label>Post Duration</Label>
                   <Select
-                    value={formData.duration_days}
-                    onValueChange={(value) => handleInputChange("duration_days", value)}
+                    value={formData.duration}
+                    onValueChange={(value) => setFormData({ ...formData, duration: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select duration" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1">1 Day</SelectItem>
-                      <SelectItem value="2">2 Days</SelectItem>
-                      <SelectItem value="3">3 Days</SelectItem>
-                      <SelectItem value="7">1 Week</SelectItem>
-                      <SelectItem value="14">2 Weeks</SelectItem>
-                      <SelectItem value="30">1 Month</SelectItem>
+                      {durations.map((duration) => (
+                        <SelectItem key={duration.value} value={duration.value}>
+                          {duration.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
