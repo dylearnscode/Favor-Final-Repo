@@ -11,10 +11,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useToast } from "@/hooks/use-toast"
 import BottomNav from "@/components/bottom-nav"
 
 export default function PostService() {
   const router = useRouter()
+  const { toast } = useToast()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -34,29 +37,53 @@ export default function PostService() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    // Convert price to decimal
-    const totalPrice = Number.parseFloat(`${formData.priceDollars}.${formData.priceCents}`)
-
-    const postData = {
-      title: formData.title,
-      description: formData.description,
-      price: totalPrice,
-      price_negotiability: formData.priceNegotiability,
-      category: formData.category,
-      duration_days: Number.parseInt(formData.duration),
-    }
+    setIsSubmitting(true)
 
     try {
-      // TODO: Replace with actual API call to create exchange post
-      console.log("Service posted:", postData)
+      // Convert price to decimal
+      const totalPrice = Number.parseFloat(`${formData.priceDollars}.${formData.priceCents}`)
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const postData = {
+        title: formData.title,
+        description: formData.description,
+        price: totalPrice,
+        price_negotiability: formData.priceNegotiability,
+        category: formData.category,
+        duration_days: Number.parseInt(formData.duration),
+        user_id: "00000000-0000-0000-0000-000000000000", // TODO: Replace with actual user ID from auth
+      }
+
+      const response = await fetch("/api/exchange/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(postData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to create post")
+      }
+
+      const result = await response.json()
+      console.log("Service posted successfully:", result)
+
+      toast({
+        title: "Success!",
+        description: "Your service has been posted successfully.",
+      })
 
       router.push("/exchange/main")
     } catch (error) {
       console.error("Error posting service:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to post service. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -257,9 +284,9 @@ export default function PostService() {
                 <Button
                   type="submit"
                   className="w-full bg-white text-black hover:bg-gray-200 h-12 font-semibold"
-                  disabled={!isFormValid}
+                  disabled={!isFormValid || isSubmitting}
                 >
-                  Post Service
+                  {isSubmitting ? "Posting..." : "Post Service"}
                 </Button>
               </div>
             </form>

@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Search, Plus, Star } from "lucide-react"
+import { Search, Plus, Star, Loader2 } from "lucide-react"
 import BottomNav from "@/components/bottom-nav"
 import { useRouter } from "next/navigation"
 
@@ -17,57 +17,11 @@ interface ServiceItem {
   price_negotiability: "negotiable" | "non-negotiable"
   category: string
   poster: string
-  rating?: number
+  rating?: number | null
   review_count?: number
+  created_at: string
+  expires_at: string
 }
-
-// Sample data - replace with actual API call
-const SAMPLE_SERVICES: ServiceItem[] = [
-  {
-    id: "1",
-    title: "Wait in line for Salpicon",
-    description: "Saves you 40 minutes, Courier swipes for you",
-    price: 12.0,
-    price_negotiability: "non-negotiable",
-    poster: "Sarah K.",
-    rating: 4.9,
-    review_count: 23,
-    category: "Food Truck Line Service",
-  },
-  {
-    id: "2",
-    title: "Coffee Chat with UConsulting Director",
-    description: "Get ahead for recruitment.",
-    price: 15.0,
-    price_negotiability: "negotiable",
-    poster: "Mike R.",
-    rating: 5.0,
-    review_count: 18,
-    category: "Preprofessional Help",
-  },
-  {
-    id: "3",
-    title: "Resume review from Google APM intern",
-    description: "70% of my mentees have FAANG offers",
-    price: 20.0,
-    price_negotiability: "non-negotiable",
-    poster: "Emma L.",
-    rating: 4.8,
-    review_count: 45,
-    category: "Preprofessional Help",
-  },
-  {
-    id: "4",
-    title: "Concert ticket pickup service",
-    description: "I'll wait in line and deliver to your dorm",
-    price: 8.0,
-    price_negotiability: "negotiable",
-    poster: "Alex M.",
-    rating: null,
-    review_count: 0,
-    category: "Concert Tickets",
-  },
-]
 
 const CATEGORIES = ["Concert Tickets", "Dorm Items", "Preprofessional Help", "Food Truck Line Service"]
 
@@ -75,12 +29,39 @@ export default function ExchangeMain() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [services, setServices] = useState<ServiceItem[]>(SAMPLE_SERVICES)
+  const [services, setServices] = useState<ServiceItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // TODO: Replace with actual API call to fetch exchange posts
+  const fetchServices = async (category?: string) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const url = new URL("/api/exchange/posts", window.location.origin)
+      if (category) {
+        url.searchParams.set("category", category)
+      }
+
+      const response = await fetch(url.toString())
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch services")
+      }
+
+      const data = await response.json()
+      setServices(data)
+    } catch (err) {
+      console.error("Error fetching services:", err)
+      setError(err instanceof Error ? err.message : "Failed to load services")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    // fetchExchangePosts()
-  }, [])
+    fetchServices(selectedCategory || undefined)
+  }, [selectedCategory])
 
   const filteredServices = services.filter((service) => {
     const matchesSearch =
@@ -88,9 +69,7 @@ export default function ExchangeMain() {
       service.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       service.category.toLowerCase().includes(searchQuery.toLowerCase())
 
-    const matchesCategory = !selectedCategory || service.category === selectedCategory
-
-    return matchesSearch && matchesCategory
+    return matchesSearch
   })
 
   const handlePostClick = () => {
@@ -104,7 +83,12 @@ export default function ExchangeMain() {
   }
 
   const handleCategoryClick = (category: string) => {
-    setSelectedCategory(selectedCategory === category ? null : category)
+    const newCategory = selectedCategory === category ? null : category
+    setSelectedCategory(newCategory)
+  }
+
+  const handleRefresh = () => {
+    fetchServices(selectedCategory || undefined)
   }
 
   return (
@@ -144,6 +128,14 @@ export default function ExchangeMain() {
             className="rounded-full bg-gray-900 border-gray-700 text-white hover:bg-gray-800"
           >
             Top Rated
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            className="rounded-full bg-gray-900 border-gray-700 text-white hover:bg-gray-800"
+          >
+            Refresh
           </Button>
         </div>
       </div>
@@ -224,61 +216,84 @@ export default function ExchangeMain() {
           Available Services
           {selectedCategory && <span className="text-sm font-normal text-gray-400 ml-2">• {selectedCategory}</span>}
         </h2>
-        <div className="space-y-4">
-          {filteredServices.map((service) => (
-            <Card
-              key={service.id}
-              className="overflow-hidden shadow-sm border-gray-800 bg-gray-900 hover:bg-gray-800 transition-all duration-200"
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            <span className="ml-2 text-gray-400">Loading services...</span>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">⚠️</span>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-400 mb-2">Error loading services</h3>
+            <p className="text-gray-500 mb-4">{error}</p>
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              className="text-white border-gray-700 hover:bg-gray-800 bg-transparent"
             >
-              <CardContent className="p-0">
-                <div className="flex">
-                  {/* Service Image/Icon */}
-                  <div className="w-24 h-24 bg-gray-800 flex items-center justify-center flex-shrink-0">
-                    <div className="text-2xl">
-                      {service.category === "Food Truck Line Service" && "🍽️"}
-                      {service.category === "Preprofessional Help" && "💼"}
-                      {service.category === "Concert Tickets" && "🎫"}
-                      {service.category === "Dorm Items" && "🏠"}
-                    </div>
-                  </div>
-
-                  {/* Service Details */}
-                  <div className="flex-1 p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-base mb-1 text-white">{service.title}</h3>
-                        <p className="text-gray-400 text-sm mb-2 line-clamp-2">{service.description}</p>
-
-                        <div className="flex items-center gap-4 text-xs text-gray-500">
-                          <span className="text-gray-400">By {service.poster}</span>
-                          {service.rating && service.review_count > 0 ? (
-                            <div className="flex items-center gap-1">
-                              <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                              <span className="text-gray-400">
-                                {service.rating} ({service.review_count})
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-gray-500">No rating</span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="text-right ml-4">
-                        <div className="font-bold text-lg text-white">${service.price.toFixed(2)}</div>
-                        <div className="text-xs text-gray-500">
-                          {service.price_negotiability === "negotiable" ? "Negotiable" : "Fixed"}
-                        </div>
+              Try Again
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredServices.map((service) => (
+              <Card
+                key={service.id}
+                className="overflow-hidden shadow-sm border-gray-800 bg-gray-900 hover:bg-gray-800 transition-all duration-200"
+              >
+                <CardContent className="p-0">
+                  <div className="flex">
+                    {/* Service Image/Icon */}
+                    <div className="w-24 h-24 bg-gray-800 flex items-center justify-center flex-shrink-0">
+                      <div className="text-2xl">
+                        {service.category === "Food Truck Line Service" && "🍽️"}
+                        {service.category === "Preprofessional Help" && "💼"}
+                        {service.category === "Concert Tickets" && "🎫"}
+                        {service.category === "Dorm Items" && "🏠"}
                       </div>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
 
-        {filteredServices.length === 0 && (
+                    {/* Service Details */}
+                    <div className="flex-1 p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-base mb-1 text-white">{service.title}</h3>
+                          <p className="text-gray-400 text-sm mb-2 line-clamp-2">{service.description}</p>
+
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <span className="text-gray-400">By {service.poster}</span>
+                            {service.rating && service.review_count && service.review_count > 0 ? (
+                              <div className="flex items-center gap-1">
+                                <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                                <span className="text-gray-400">
+                                  {service.rating} ({service.review_count})
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-500">No rating</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="text-right ml-4">
+                          <div className="font-bold text-lg text-white">${service.price.toFixed(2)}</div>
+                          <div className="text-xs text-gray-500">
+                            {service.price_negotiability === "negotiable" ? "Negotiable" : "Fixed"}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {!loading && !error && filteredServices.length === 0 && (
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
               <Search className="w-8 h-8 text-gray-600" />
