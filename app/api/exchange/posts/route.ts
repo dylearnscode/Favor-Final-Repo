@@ -1,19 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-
-// Create a server-side Supabase client for API routes
-const supabaseServer = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+import { createClient } from "@/lib/supabase"
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = createClient()
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
 
-    let query = supabaseServer
+    let query = supabase
       .from("exchange_posts")
       .select(`
         *,
         user_profiles (
+          id,
           username,
           full_name,
           avatar_url
@@ -31,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Error fetching exchange posts:", error)
-      return NextResponse.json({ error: "Failed to fetch posts" }, { status: 500 })
+      return NextResponse.json({ error: "Failed to fetch exchange posts" }, { status: 500 })
     }
 
     return NextResponse.json(data || [])
@@ -43,30 +42,31 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { title, description, price, price_negotiability = "non-negotiable", category, duration_days } = body
+    const supabase = createClient()
 
-    // Get user from auth header
-    const authHeader = request.headers.get("authorization")
-    if (!authHeader) {
-      return NextResponse.json({ error: "No authorization header" }, { status: 401 })
-    }
-
-    const token = authHeader.replace("Bearer ", "")
+    // Get the authenticated user
     const {
       data: { user },
       error: authError,
-    } = await supabaseServer.auth.getUser(token)
+    } = await supabase.auth.getUser()
 
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { title, description, price, price_negotiability = "non-negotiable", category, duration_days } = body
+
+    // Validate required fields
+    if (!title || !description || price === undefined || !category || !duration_days) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
     // Calculate expiration date
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + Number.parseInt(duration_days))
 
-    const { data, error } = await supabaseServer
+    const { data, error } = await supabase
       .from("exchange_posts")
       .insert({
         title,
@@ -78,16 +78,17 @@ export async function POST(request: NextRequest) {
         expires_at: expiresAt.toISOString(),
         user_id: user.id,
         status: "active",
+        review_count: 0,
       })
       .select()
       .single()
 
     if (error) {
       console.error("Error creating exchange post:", error)
-      return NextResponse.json({ error: "Failed to create post" }, { status: 500 })
+      return NextResponse.json({ error: "Failed to create exchange post" }, { status: 500 })
     }
 
-    return NextResponse.json(data)
+    return NextResponse.json(data, { status: 201 })
   } catch (error) {
     console.error("Error in POST /api/exchange/posts:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

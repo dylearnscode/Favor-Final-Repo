@@ -24,7 +24,7 @@ export function ProtectedRoute({ children, redirectTo = "/auth/signin" }: Protec
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
       </div>
     )
   }

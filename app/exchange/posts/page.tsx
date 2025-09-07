@@ -10,73 +10,55 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft } from "lucide-react"
-import { ProtectedRoute } from "@/components/protected-route"
-import { useAuth } from "@/components/auth-provider"
+import { ArrowLeft, DollarSign } from "lucide-react"
 import { toast } from "sonner"
-import { supabase } from "@/lib/supabase"
+import { ProtectedRoute } from "@/components/protected-route"
 
 export default function PostServicePage() {
   const router = useRouter()
-  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     dollars: "0",
     cents: "00",
-    negotiability: "non-negotiable",
+    price_negotiability: "non-negotiable",
     category: "",
-    duration: "1",
+    duration_days: "1",
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!user) {
-      toast.error("You must be signed in to post a service")
-      return
-    }
-
     setLoading(true)
 
     try {
       const price = Number.parseFloat(`${formData.dollars}.${formData.cents}`)
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session) {
-        toast.error("Please sign in to post a service")
-        router.push("/auth/signin")
-        return
-      }
-
       const response = await fetch("/api/exchange/posts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           title: formData.title,
           description: formData.description,
-          price: price.toString(),
-          price_negotiability: formData.negotiability,
+          price,
+          price_negotiability: formData.price_negotiability,
           category: formData.category,
-          duration_days: formData.duration,
+          duration_days: Number.parseInt(formData.duration_days),
         }),
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || "Failed to create post")
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to create post")
       }
 
       toast.success("Service posted successfully!")
       router.push("/exchange/main")
     } catch (error) {
-      console.error("Error posting service:", error)
-      toast.error(error instanceof Error ? error.message : "Failed to post service")
+      console.error("Error creating post:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to create post")
     } finally {
       setLoading(false)
     }
@@ -88,33 +70,33 @@ export default function PostServicePage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50 p-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center gap-4 mb-6">
             <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-2xl font-bold">Post a Service</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Post a Service</h1>
           </div>
 
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle>Service Details</CardTitle>
+              <CardTitle className="text-xl text-center">Create Your Service Listing</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="title">Service Title</Label>
                   <Input
                     id="title"
+                    placeholder="e.g., Concert Ticket for Taylor Swift"
                     value={formData.title}
                     onChange={(e) => handleInputChange("title", e.target.value)}
-                    placeholder="What service are you offering?"
                     required
                   />
                 </div>
 
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="category">Category</Label>
                   <Select
                     value={formData.category}
@@ -133,80 +115,77 @@ export default function PostServicePage() {
                   </Select>
                 </div>
 
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
+                    placeholder="Describe your service in detail..."
                     value={formData.description}
                     onChange={(e) => handleInputChange("description", e.target.value)}
-                    placeholder="Describe your service in detail..."
                     rows={4}
                     required
                   />
                 </div>
 
-                <div>
+                <div className="space-y-2">
                   <Label>Price</Label>
                   <div className="flex gap-2 items-center">
                     <div className="flex items-center">
-                      <span className="text-lg font-medium mr-1">$</span>
-                      <Select value={formData.dollars} onValueChange={(value) => handleInputChange("dollars", value)}>
-                        <SelectTrigger className="w-20">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 101 }, (_, i) => (
-                            <SelectItem key={i} value={i.toString()}>
-                              {i}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <DollarSign className="h-4 w-4 text-gray-500" />
+                      <Input
+                        type="number"
+                        min="0"
+                        max="999"
+                        value={formData.dollars}
+                        onChange={(e) => handleInputChange("dollars", e.target.value)}
+                        className="w-20 text-center"
+                        required
+                      />
                     </div>
-                    <span className="text-lg">.</span>
+                    <span className="text-gray-500">.</span>
                     <Select value={formData.cents} onValueChange={(value) => handleInputChange("cents", value)}>
                       <SelectTrigger className="w-20">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {Array.from({ length: 10 }, (_, i) => {
-                          const cents = (i * 10).toString().padStart(2, "0")
-                          return (
-                            <SelectItem key={cents} value={cents}>
-                              {cents}
-                            </SelectItem>
-                          )
-                        })}
+                        {Array.from({ length: 10 }, (_, i) => (
+                          <SelectItem key={i} value={`${i}0`}>
+                            {i}0
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <Select
-                      value={formData.negotiability}
-                      onValueChange={(value) => handleInputChange("negotiability", value)}
+                      value={formData.price_negotiability}
+                      onValueChange={(value) => handleInputChange("price_negotiability", value)}
                     >
                       <SelectTrigger className="w-32">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="negotiable">Negotiable</SelectItem>
                         <SelectItem value="non-negotiable">Fixed</SelectItem>
+                        <SelectItem value="negotiable">Negotiable</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="duration">Post Duration</Label>
-                  <Select value={formData.duration} onValueChange={(value) => handleInputChange("duration", value)}>
+                  <Select
+                    value={formData.duration_days}
+                    onValueChange={(value) => handleInputChange("duration_days", value)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1">1 day</SelectItem>
-                      <SelectItem value="2">2 days</SelectItem>
-                      <SelectItem value="3">3 days</SelectItem>
-                      <SelectItem value="7">1 week</SelectItem>
-                      <SelectItem value="14">2 weeks</SelectItem>
-                      <SelectItem value="30">1 month</SelectItem>
+                      <SelectItem value="1">1 Day</SelectItem>
+                      <SelectItem value="2">2 Days</SelectItem>
+                      <SelectItem value="3">3 Days</SelectItem>
+                      <SelectItem value="7">1 Week</SelectItem>
+                      <SelectItem value="14">2 Weeks</SelectItem>
+                      <SelectItem value="30">1 Month</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
