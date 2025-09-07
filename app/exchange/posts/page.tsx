@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, DollarSign, Calendar, FileText, Type } from "lucide-react"
+import { ArrowLeft, DollarSign, Calendar, FileText, Type, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -18,7 +18,10 @@ export default function PostService() {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    price: "",
+    priceDollars: "",
+    priceCents: "00",
+    priceNegotiability: "non-negotiable",
+    category: "",
     duration: "",
   })
 
@@ -29,16 +32,43 @@ export default function PostService() {
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Handle form submission
-    console.log("Service posted:", formData)
-    router.push("/exchange/main")
+
+    // Convert price to decimal
+    const totalPrice = Number.parseFloat(`${formData.priceDollars}.${formData.priceCents}`)
+
+    const postData = {
+      title: formData.title,
+      description: formData.description,
+      price: totalPrice,
+      price_negotiability: formData.priceNegotiability,
+      category: formData.category,
+      duration_days: Number.parseInt(formData.duration),
+    }
+
+    try {
+      // TODO: Replace with actual API call to create exchange post
+      console.log("Service posted:", postData)
+
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      router.push("/exchange/main")
+    } catch (error) {
+      console.error("Error posting service:", error)
+    }
   }
 
   const handleBack = () => {
     router.push("/exchange/main")
   }
+
+  const isFormValid =
+    formData.title && formData.description && formData.priceDollars && formData.category && formData.duration
+
+  // Generate cents options (00, 10, 20, ..., 90)
+  const centsOptions = Array.from({ length: 10 }, (_, i) => (i * 10).toString().padStart(2, "0"))
 
   return (
     <div className="min-h-screen bg-black text-white safe-area-inset">
@@ -96,25 +126,89 @@ export default function PostService() {
                 <p className="text-xs text-gray-500">Be specific about what you're offering and any requirements</p>
               </div>
 
+              {/* Category Field */}
+              <div className="space-y-2">
+                <Label htmlFor="category" className="text-white flex items-center gap-2">
+                  <Tag className="w-4 h-4" />
+                  Category
+                </Label>
+                <Select value={formData.category} onValueChange={(value) => handleInputChange("category", value)}>
+                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white h-12">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-700">
+                    <SelectItem value="Concert Tickets" className="text-white hover:bg-gray-700">
+                      Concert Tickets
+                    </SelectItem>
+                    <SelectItem value="Dorm Items" className="text-white hover:bg-gray-700">
+                      Dorm Items
+                    </SelectItem>
+                    <SelectItem value="Preprofessional Help" className="text-white hover:bg-gray-700">
+                      Preprofessional Help
+                    </SelectItem>
+                    <SelectItem value="Food Truck Line Service" className="text-white hover:bg-gray-700">
+                      Food Truck Line Service
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Price Field */}
               <div className="space-y-2">
-                <Label htmlFor="price" className="text-white flex items-center gap-2">
+                <Label className="text-white flex items-center gap-2">
                   <DollarSign className="w-4 h-4" />
                   Price
                 </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">$</span>
-                  <Input
-                    id="price"
-                    type="number"
-                    placeholder="0.00"
-                    value={formData.price}
-                    onChange={(e) => handleInputChange("price", e.target.value)}
-                    className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 h-12 pl-8"
-                    min="0"
-                    step="0.01"
-                    required
-                  />
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">$</span>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={formData.priceDollars}
+                        onChange={(e) => handleInputChange("priceDollars", e.target.value)}
+                        className="bg-gray-800 border-gray-700 text-white placeholder-gray-400 h-12 pl-8"
+                        min="0"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="w-20">
+                    <Select
+                      value={formData.priceCents}
+                      onValueChange={(value) => handleInputChange("priceCents", value)}
+                    >
+                      <SelectTrigger className="bg-gray-800 border-gray-700 text-white h-12">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-800 border-gray-700">
+                        {centsOptions.map((cents) => (
+                          <SelectItem key={cents} value={cents} className="text-white hover:bg-gray-700">
+                            .{cents}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="w-32">
+                    <Select
+                      value={formData.priceNegotiability}
+                      onValueChange={(value) => handleInputChange("priceNegotiability", value)}
+                    >
+                      <SelectTrigger className="bg-gray-800 border-gray-700 text-white h-12">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-800 border-gray-700">
+                        <SelectItem value="non-negotiable" className="text-white hover:bg-gray-700">
+                          Fixed
+                        </SelectItem>
+                        <SelectItem value="negotiable" className="text-white hover:bg-gray-700">
+                          Negotiable
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <p className="text-xs text-gray-500">Set a fair price for your service</p>
               </div>
@@ -151,9 +245,6 @@ export default function PostService() {
                     <SelectItem value="7" className="text-white hover:bg-gray-700">
                       7 days
                     </SelectItem>
-                    <SelectItem value="indefinite" className="text-white hover:bg-gray-700">
-                      Indefinitely
-                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-gray-500">
@@ -166,7 +257,7 @@ export default function PostService() {
                 <Button
                   type="submit"
                   className="w-full bg-white text-black hover:bg-gray-200 h-12 font-semibold"
-                  disabled={!formData.title || !formData.description || !formData.price || !formData.duration}
+                  disabled={!isFormValid}
                 >
                   Post Service
                 </Button>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -12,72 +12,86 @@ import { useRouter } from "next/navigation"
 interface ServiceItem {
   id: string
   title: string
-  subtitle: string
-  price: string
+  description: string
+  price: number
+  price_negotiability: "negotiable" | "non-negotiable"
+  category: string
   poster: string
   rating?: number
-  reviews?: number
-  timeEstimate?: string
-  category: string
+  review_count?: number
 }
 
+// Sample data - replace with actual API call
 const SAMPLE_SERVICES: ServiceItem[] = [
   {
     id: "1",
     title: "Wait in line for Salpicon",
-    subtitle: "Saves you 40 minutes, Courier swipes for you",
-    price: "$12",
+    description: "Saves you 40 minutes, Courier swipes for you",
+    price: 12.0,
+    price_negotiability: "non-negotiable",
     poster: "Sarah K.",
     rating: 4.9,
-    reviews: 23,
-    timeEstimate: "Available now",
-    category: "Food Services",
+    review_count: 23,
+    category: "Food Truck Line Service",
   },
   {
     id: "2",
     title: "Coffee Chat with UConsulting Director",
-    subtitle: "Get ahead for recruitment.",
-    price: "$15",
+    description: "Get ahead for recruitment.",
+    price: 15.0,
+    price_negotiability: "negotiable",
     poster: "Mike R.",
     rating: 5.0,
-    reviews: 18,
-    timeEstimate: "30 min",
-    category: "Career Help",
+    review_count: 18,
+    category: "Preprofessional Help",
   },
   {
     id: "3",
     title: "Resume review from Google APM intern",
-    subtitle: "70% of my mentees have FAANG offers",
-    price: "$20",
+    description: "70% of my mentees have FAANG offers",
+    price: 20.0,
+    price_negotiability: "non-negotiable",
     poster: "Emma L.",
     rating: 4.8,
-    reviews: 45,
-    timeEstimate: "24 hours",
-    category: "Career Help",
+    review_count: 45,
+    category: "Preprofessional Help",
   },
   {
     id: "4",
     title: "Concert ticket pickup service",
-    subtitle: "I'll wait in line and deliver to your dorm",
-    price: "$8",
+    description: "I'll wait in line and deliver to your dorm",
+    price: 8.0,
+    price_negotiability: "negotiable",
     poster: "Alex M.",
-    rating: 4.7,
-    reviews: 12,
-    timeEstimate: "Same day",
-    category: "Event Services",
+    rating: null,
+    review_count: 0,
+    category: "Concert Tickets",
   },
 ]
+
+const CATEGORIES = ["Concert Tickets", "Dorm Items", "Preprofessional Help", "Food Truck Line Service"]
 
 export default function ExchangeMain() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [services, setServices] = useState<ServiceItem[]>(SAMPLE_SERVICES)
 
-  const filteredServices = SAMPLE_SERVICES.filter(
-    (service) =>
+  // TODO: Replace with actual API call to fetch exchange posts
+  useEffect(() => {
+    // fetchExchangePosts()
+  }, [])
+
+  const filteredServices = services.filter((service) => {
+    const matchesSearch =
       service.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.subtitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.category.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+      service.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      service.category.toLowerCase().includes(searchQuery.toLowerCase())
+
+    const matchesCategory = !selectedCategory || service.category === selectedCategory
+
+    return matchesSearch && matchesCategory
+  })
 
   const handlePostClick = () => {
     console.log("Post button clicked, navigating to /exchange/posts")
@@ -87,6 +101,10 @@ export default function ExchangeMain() {
   const handleBruinBashClick = () => {
     console.log("BruinBash clicked, navigating to specload")
     router.push("/exchange/specials/specload")
+  }
+
+  const handleCategoryClick = (category: string) => {
+    setSelectedCategory(selectedCategory === category ? null : category)
   }
 
   return (
@@ -130,52 +148,36 @@ export default function ExchangeMain() {
         </div>
       </div>
 
-      {/* Category Icons */}
+      {/* Category Filters */}
       <div className="px-4 py-4">
         <div className="flex justify-between items-center">
-          <div className="flex flex-col items-center">
-            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-2 p-2">
-              <img
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/521_REpWIE1BUiAwMjMtMjc.jpg-gkjNPhs7XOlhPfkji6OpY8tshQ1vPr.jpeg"
-                alt="Concert"
-                className="w-full h-full object-contain rounded-full"
-              />
+          {CATEGORIES.map((category) => (
+            <div
+              key={category}
+              className="flex flex-col items-center cursor-pointer"
+              onClick={() => handleCategoryClick(category)}
+            >
+              <div
+                className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 p-2 transition-colors ${
+                  selectedCategory === category ? "bg-blue-600" : "bg-white hover:bg-gray-200"
+                }`}
+              >
+                <span className="text-2xl">
+                  {category === "Concert Tickets" && "🎫"}
+                  {category === "Dorm Items" && "🏠"}
+                  {category === "Preprofessional Help" && "💼"}
+                  {category === "Food Truck Line Service" && "🍽️"}
+                </span>
+              </div>
+              <span
+                className={`text-xs font-medium text-center ${
+                  selectedCategory === category ? "text-blue-400" : "text-gray-300"
+                }`}
+              >
+                {category}
+              </span>
             </div>
-            <span className="text-xs font-medium text-gray-300">Concert Tickets</span>
-          </div>
-
-          <div className="flex flex-col items-center">
-            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-2 p-2">
-              <img
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-lUz4mv0eL0DHh3LUSF5ugEyFAyferD.png"
-                alt="Dorm Appliances"
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <span className="text-xs font-medium text-gray-300">Dorm Appliances</span>
-          </div>
-
-          <div className="flex flex-col items-center">
-            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-2 p-2">
-              <img
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-YaEScVT1iz8dnYlshrOfBrOns0CBNP.png"
-                alt="Preprofessional Help"
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <span className="text-xs font-medium text-gray-300">Preprofessional Help</span>
-          </div>
-
-          <div className="flex flex-col items-center">
-            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-2 p-2">
-              <img
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot%202025-09-07%20at%2012.32.26%E2%80%AFAM-DlU56pc3JqTn4aHB537AXEy28JrMXZ.png"
-                alt="Food Truck Waiter"
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <span className="text-xs font-medium text-gray-300">Food Truck Waiter</span>
-          </div>
+          ))}
         </div>
       </div>
 
@@ -218,7 +220,10 @@ export default function ExchangeMain() {
 
       {/* Available Services Section */}
       <div className="px-4 py-4">
-        <h2 className="text-xl font-bold mb-4 text-white">Available Services</h2>
+        <h2 className="text-xl font-bold mb-4 text-white">
+          Available Services
+          {selectedCategory && <span className="text-sm font-normal text-gray-400 ml-2">• {selectedCategory}</span>}
+        </h2>
         <div className="space-y-4">
           {filteredServices.map((service) => (
             <Card
@@ -230,9 +235,10 @@ export default function ExchangeMain() {
                   {/* Service Image/Icon */}
                   <div className="w-24 h-24 bg-gray-800 flex items-center justify-center flex-shrink-0">
                     <div className="text-2xl">
-                      {service.category === "Food Services" && "🍽️"}
-                      {service.category === "Career Help" && "💼"}
-                      {service.category === "Event Services" && "🎫"}
+                      {service.category === "Food Truck Line Service" && "🍽️"}
+                      {service.category === "Preprofessional Help" && "💼"}
+                      {service.category === "Concert Tickets" && "🎫"}
+                      {service.category === "Dorm Items" && "🏠"}
                     </div>
                   </div>
 
@@ -241,24 +247,28 @@ export default function ExchangeMain() {
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <h3 className="font-semibold text-base mb-1 text-white">{service.title}</h3>
-                        <p className="text-gray-400 text-sm mb-2 line-clamp-2">{service.subtitle}</p>
+                        <p className="text-gray-400 text-sm mb-2 line-clamp-2">{service.description}</p>
 
                         <div className="flex items-center gap-4 text-xs text-gray-500">
-                          <span>{service.timeEstimate}</span>
-                          {service.rating && (
+                          <span className="text-gray-400">By {service.poster}</span>
+                          {service.rating && service.review_count > 0 ? (
                             <div className="flex items-center gap-1">
                               <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
                               <span className="text-gray-400">
-                                {service.rating} ({service.reviews})
+                                {service.rating} ({service.review_count})
                               </span>
                             </div>
+                          ) : (
+                            <span className="text-gray-500">No rating</span>
                           )}
                         </div>
                       </div>
 
                       <div className="text-right ml-4">
-                        <div className="font-bold text-lg text-white">{service.price}</div>
-                        <div className="text-xs text-gray-500">By {service.poster}</div>
+                        <div className="font-bold text-lg text-white">${service.price.toFixed(2)}</div>
+                        <div className="text-xs text-gray-500">
+                          {service.price_negotiability === "negotiable" ? "Negotiable" : "Fixed"}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -274,7 +284,20 @@ export default function ExchangeMain() {
               <Search className="w-8 h-8 text-gray-600" />
             </div>
             <h3 className="text-lg font-semibold text-gray-400 mb-2">No services found</h3>
-            <p className="text-gray-500 mb-4">Try adjusting your search or check back later</p>
+            <p className="text-gray-500 mb-4">
+              {selectedCategory
+                ? `No services found in "${selectedCategory}". Try a different category or search term.`
+                : "Try adjusting your search or check back later"}
+            </p>
+            {selectedCategory && (
+              <Button
+                variant="outline"
+                onClick={() => setSelectedCategory(null)}
+                className="text-white border-gray-700 hover:bg-gray-800"
+              >
+                Clear Filter
+              </Button>
+            )}
           </div>
         )}
       </div>

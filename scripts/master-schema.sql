@@ -26,6 +26,8 @@ CREATE TYPE transaction_status AS ENUM ('pending', 'completed', 'cancelled', 'di
 CREATE TYPE message_type AS ENUM ('text', 'image', 'file', 'system');
 CREATE TYPE post_type AS ENUM ('question', 'study_group', 'resource', 'tutoring');
 CREATE TYPE favor_type AS ENUM ('request', 'offer');
+CREATE TYPE exchange_category AS ENUM ('Concert Tickets', 'Dorm Items', 'Preprofessional Help', 'Food Truck Line Service');
+CREATE TYPE price_negotiability AS ENUM ('negotiable', 'non-negotiable');
 
 -- User profiles table (consolidated from auth-schema and complete-schema)
 CREATE TABLE user_profiles (
@@ -78,18 +80,22 @@ CREATE TABLE rideshare_posts (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Exchange posts table
+-- Exchange posts table (UPDATED)
 CREATE TABLE exchange_posts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
-    description TEXT,
-    price VARCHAR(50),
-    category VARCHAR(100),
-    condition VARCHAR(50),
-    location VARCHAR(255),
-    image_url TEXT,
+    description TEXT NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    price_negotiability price_negotiability DEFAULT 'non-negotiable',
+    category exchange_category NOT NULL,
+    duration_days INTEGER NOT NULL,
+    status post_status DEFAULT 'active',
+    rating DECIMAL(3,2) DEFAULT NULL,
+    review_count INTEGER DEFAULT 0,
     user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Favor posts table (from complete-schema)
@@ -214,6 +220,9 @@ CREATE INDEX idx_academic_posts_course ON academic_posts(course);
 CREATE INDEX idx_academic_posts_popularity ON academic_posts(popularity DESC);
 CREATE INDEX idx_rideshare_posts_departure_time ON rideshare_posts(departure_time);
 CREATE INDEX idx_rideshare_posts_destination ON rideshare_posts(destination);
+CREATE INDEX idx_exchange_posts_category ON exchange_posts(category);
+CREATE INDEX idx_exchange_posts_status ON exchange_posts(status);
+CREATE INDEX idx_exchange_posts_expires_at ON exchange_posts(expires_at);
 CREATE INDEX idx_conversations_participants ON conversations(participant_1, participant_2);
 CREATE INDEX idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX idx_messages_sender ON messages(sender_id);
@@ -258,9 +267,9 @@ CREATE POLICY "Authenticated users can insert rideshare posts" ON rideshare_post
 CREATE POLICY "Users can update own rideshare posts" ON rideshare_posts
     FOR UPDATE USING (auth.uid() = user_id);
 
--- Exchange posts: Everyone can read, authenticated users users can insert
-CREATE POLICY "Exchange posts are viewable by everyone" ON exchange_posts
-    FOR SELECT USING (true);
+-- Exchange posts: Everyone can read active posts, authenticated users can insert
+CREATE POLICY "Active exchange posts are viewable by everyone" ON exchange_posts
+    FOR SELECT USING (status = 'active');
 
 CREATE POLICY "Authenticated users can insert exchange posts" ON exchange_posts
     FOR INSERT WITH CHECK (auth.role() = 'authenticated');
@@ -333,3 +342,28 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_message_created
     AFTER INSERT ON messages
     FOR EACH ROW EXECUTE FUNCTION public.update_conversation_timestamp();
+
+-- Function to set expires_at based on duration_days
+CREATE FUNCTION public.set_exchange_post_expiry()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.expires_at = NEW.created_at + (NEW.duration_days || ' days')::INTERVAL;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to set expiry date on exchange post creation
+CREATE TRIGGER set_exchange_post_expiry_trigger
+    BEFORE INSERT ON exchange_posts
+    FOR EACH ROW EXECUTE FUNCTION public.set_exchange_post_expiry();
+
+-- Function to auto-delete expired exchange posts
+CREATE FUNCTION public.delete_expired_exchange_posts()
+RETURNS void AS $$
+BEGIN
+    DELETE FROM exchange_posts 
+    WHERE expires_at < NOW() AND status = 'active';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Note: You'll need to set up a cron job or scheduled function to call delete_expired_exchange_posts() periodically
