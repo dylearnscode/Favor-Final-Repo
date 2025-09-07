@@ -61,6 +61,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
+    // Calculate expiration date
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + Number.parseInt(duration_days))
+
     // Insert the exchange post
     const { data, error } = await supabase
       .from("exchange_posts")
@@ -71,7 +75,10 @@ export async function POST(request: NextRequest) {
         price_negotiability: price_negotiability || "non-negotiable",
         category,
         duration_days: Number.parseInt(duration_days),
+        expires_at: expiresAt.toISOString(),
         user_id: user.id,
+        status: "active",
+        review_count: 0,
       })
       .select()
       .single()
