@@ -2,15 +2,14 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
 // Create a server-side Supabase client for API routes
-const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+const supabaseServer = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
-// GET - Fetch exchange posts
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
 
-    let query = supabaseAdmin
+    let query = supabaseServer
       .from("exchange_posts")
       .select(`
         *,
@@ -24,74 +23,59 @@ export async function GET(request: NextRequest) {
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
 
-    if (category && category !== "all") {
+    if (category) {
       query = query.eq("category", category)
     }
 
     const { data, error } = await query
 
     if (error) {
-      console.error("Database error:", error)
-      return NextResponse.json({ error: "Failed to fetch exchange posts" }, { status: 500 })
+      console.error("Error fetching exchange posts:", error)
+      return NextResponse.json({ error: "Failed to fetch posts" }, { status: 500 })
     }
 
-    return NextResponse.json({ data })
+    return NextResponse.json(data || [])
   } catch (error) {
-    console.error("API error:", error)
+    console.error("Error in GET /api/exchange/posts:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
-// POST - Create exchange post
 export async function POST(request: NextRequest) {
   try {
-    // Get the authorization header
+    const body = await request.json()
+    const { title, description, price, price_negotiability = "non-negotiable", category, duration_days } = body
+
+    // Get user from auth header
     const authHeader = request.headers.get("authorization")
     if (!authHeader) {
       return NextResponse.json({ error: "No authorization header" }, { status: 401 })
     }
 
-    // Extract the JWT token
     const token = authHeader.replace("Bearer ", "")
-
-    // Verify the token and get user
     const {
       data: { user },
       error: authError,
-    } = await supabaseAdmin.auth.getUser(token)
+    } = await supabaseServer.auth.getUser(token)
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { title, description, price, price_negotiability = "non-negotiable", category, duration_days } = body
+    // Calculate expiration date
+    const expiresAt = new Date()
+    expiresAt.setDate(expiresAt.getDate() + Number.parseInt(duration_days))
 
-    // Validate required fields
-    if (!title || !description || price === undefined || !category || !duration_days) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-    }
-
-    // Validate price
-    if (typeof price !== "number" || price < 0) {
-      return NextResponse.json({ error: "Price must be a non-negative number" }, { status: 400 })
-    }
-
-    // Validate duration_days
-    if (typeof duration_days !== "number" || duration_days <= 0) {
-      return NextResponse.json({ error: "Duration must be a positive number" }, { status: 400 })
-    }
-
-    // Insert the exchange post
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabaseServer
       .from("exchange_posts")
       .insert({
         title,
         description,
-        price,
+        price: Number.parseFloat(price),
         price_negotiability,
         category,
-        duration_days,
+        duration_days: Number.parseInt(duration_days),
+        expires_at: expiresAt.toISOString(),
         user_id: user.id,
         status: "active",
       })
@@ -99,13 +83,13 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error("Database error:", error)
-      return NextResponse.json({ error: "Failed to create exchange post" }, { status: 500 })
+      console.error("Error creating exchange post:", error)
+      return NextResponse.json({ error: "Failed to create post" }, { status: 500 })
     }
 
-    return NextResponse.json({ data }, { status: 201 })
+    return NextResponse.json(data)
   } catch (error) {
-    console.error("API error:", error)
+    console.error("Error in POST /api/exchange/posts:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { createContext, useContext, useEffect, useState } from "react"
 import type { User } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabase"
@@ -12,6 +11,7 @@ interface UserProfile {
   email: string
   full_name?: string
   avatar_url?: string
+  bio?: string
   created_at: string
   updated_at: string
 }
@@ -20,8 +20,6 @@ interface AuthContextType {
   user: User | null
   profile: UserProfile | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<{ error: any }>
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
 }
@@ -92,37 +90,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    return { error }
-  }
-
-  const signUp = async (email: string, password: string, fullName?: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-      },
-    })
-    return { error }
-  }
-
   const signOut = async () => {
     await supabase.auth.signOut()
+    setUser(null)
+    setProfile(null)
   }
 
   const value = {
     user,
     profile,
     loading,
-    signIn,
-    signUp,
     signOut,
     refreshProfile,
   }

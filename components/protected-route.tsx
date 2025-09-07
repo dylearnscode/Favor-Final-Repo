@@ -8,22 +8,23 @@ import { useEffect } from "react"
 
 interface ProtectedRouteProps {
   children: React.ReactNode
+  redirectTo?: string
 }
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, redirectTo = "/auth/signin" }: ProtectedRouteProps) {
   const { user, loading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push("/auth/signin")
+      router.push(redirectTo)
     }
-  }, [user, loading, router])
+  }, [user, loading, router, redirectTo])
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
       </div>
     )
   }
