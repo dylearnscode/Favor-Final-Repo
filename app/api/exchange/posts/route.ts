@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase"
 
 export async function GET(request: NextRequest) {
@@ -7,10 +7,22 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
 
+    // Build query to fetch active posts with user profile info
     let query = supabase
       .from("exchange_posts")
       .select(`
-        *,
+        id,
+        title,
+        description,
+        price,
+        price_negotiability,
+        category,
+        status,
+        rating,
+        review_count,
+        created_at,
+        expires_at,
+        user_id,
         user_profiles!exchange_posts_user_id_fkey (
           username,
           full_name
@@ -31,7 +43,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch exchange posts" }, { status: 500 })
     }
 
-    // Transform data to match frontend interface
     const transformedData =
       data?.map((post) => ({
         id: post.id,
@@ -59,17 +70,19 @@ export async function POST(request: NextRequest) {
     const supabase = createClient()
     const body = await request.json()
 
-    const { title, description, price, price_negotiability = "non-negotiable", category, duration_days, user_id } = body
+    const {
+      title,
+      description,
+      price,
+      price_negotiability = "non-negotiable",
+      category,
+      duration_days,
+      user_id,
+    } = body
 
     // Validate required fields
-    if (!title || !description || !price || !category || !duration_days || !user_id) {
+    if (!title || !description || price == null || !category || !duration_days || !user_id) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-    }
-
-    // Validate category
-    const validCategories = ["Concert Tickets", "Dorm Items", "Preprofessional Help", "Food Truck Line Service"]
-    if (!validCategories.includes(category)) {
-      return NextResponse.json({ error: "Invalid category" }, { status: 400 })
     }
 
     // Validate price
@@ -78,10 +91,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate duration
-    if (typeof duration_days !== "number" || duration_days < 1 || duration_days > 30) {
-      return NextResponse.json({ error: "Duration must be between 1 and 30 days" }, { status: 400 })
+    if (!Number.isInteger(duration_days) || duration_days < 1 || duration_days > 30) {
+      return NextResponse.json({ error: "Duration must be an integer between 1 and 30 days" }, { status: 400 })
     }
 
+    // Validate category
+    const validCategories = ["Concert Tickets", "Dorm Items", "Preprofessional Help", "Food Truck Line Service"]
+    if (!validCategories.includes(category)) {
+      return NextResponse.json({ error: "Invalid category" }, { status: 400 })
+    }
+
+    // Validate price negotiability
+    const validNegotiability = ["negotiable", "non-negotiable"]
+    if (!validNegotiability.includes(price_negotiability)) {
+      return NextResponse.json({ error: "Invalid price negotiability" }, { status: 400 })
+    }
+
+    // Verify user is authenticated and matches user_id
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user || user.id !== user_id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Insert post
     const { data, error } = await supabase
       .from("exchange_posts")
       .insert({
