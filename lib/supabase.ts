@@ -7,40 +7,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase environment variables")
 }
 
-export function createClient() {
+export const createClient = () => {
   return createSupabaseClient(supabaseUrl, supabaseAnonKey)
-}
-
-export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey)
-
-// Database types
-export interface UserProfile {
-  id: string
-  username: string
-  email: string
-  full_name?: string
-  avatar_url?: string
-  bio?: string
-  created_at: string
-  updated_at: string
-}
-
-export interface ExchangePost {
-  id: string
-  user_id: string
-  title: string
-  description: string
-  price: number
-  price_negotiability: "negotiable" | "non-negotiable"
-  category: string
-  duration_days: number
-  expires_at: string
-  status: "active" | "inactive" | "completed"
-  rating?: number
-  review_count: number
-  created_at: string
-  updated_at: string
-  user_profiles?: UserProfile
 }
 
 export type Database = {
@@ -53,7 +21,6 @@ export type Database = {
           email: string
           full_name: string | null
           avatar_url: string | null
-          bio: string | null
           created_at: string
           updated_at: string
         }
@@ -63,7 +30,6 @@ export type Database = {
           email: string
           full_name?: string | null
           avatar_url?: string | null
-          bio?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -73,57 +39,6 @@ export type Database = {
           email?: string
           full_name?: string | null
           avatar_url?: string | null
-          bio?: string | null
-          updated_at?: string
-        }
-      }
-      exchange_posts: {
-        Row: {
-          id: string
-          user_id: string
-          title: string
-          description: string
-          price: number
-          price_negotiability: "negotiable" | "non-negotiable"
-          category: string
-          duration_days: number
-          expires_at: string
-          status: "active" | "inactive" | "completed"
-          rating: number | null
-          review_count: number
-          created_at: string
-          updated_at: string
-          user_profiles?: UserProfile
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          title: string
-          description: string
-          price: number
-          price_negotiability?: "negotiable" | "non-negotiable"
-          category: string
-          duration_days: number
-          expires_at?: string
-          status?: "active" | "inactive" | "completed"
-          rating?: number | null
-          review_count?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          title?: string
-          description?: string
-          price?: number
-          price_negotiability?: "negotiable" | "non-negotiable"
-          category?: string
-          duration_days?: number
-          expires_at?: string
-          status?: "active" | "inactive" | "completed"
-          rating?: number | null
-          review_count?: number
           updated_at?: string
         }
       }
@@ -207,6 +122,56 @@ export type Database = {
           created_at?: string
           file_size?: number | null
           file_type?: string | null
+        }
+      }
+      exchange_posts: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          price: number
+          price_negotiability: "negotiable" | "non-negotiable"
+          category: "Concert Tickets" | "Dorm Items" | "Preprofessional Help" | "Food Truck Line Service"
+          user_id: string
+          status: "active" | "inactive" | "expired"
+          duration_days: number
+          expires_at: string
+          rating: number | null
+          review_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          price: number
+          price_negotiability?: "negotiable" | "non-negotiable"
+          category: "Concert Tickets" | "Dorm Items" | "Preprofessional Help" | "Food Truck Line Service"
+          user_id: string
+          status?: "active" | "inactive" | "expired"
+          duration_days: number
+          expires_at?: string
+          rating?: number | null
+          review_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          price?: number
+          price_negotiability?: "negotiable" | "non-negotiable"
+          category?: "Concert Tickets" | "Dorm Items" | "Preprofessional Help" | "Food Truck Line Service"
+          user_id?: string
+          status?: "active" | "inactive" | "expired"
+          duration_days?: number
+          expires_at?: string
+          rating?: number | null
+          review_count?: number
+          created_at?: string
+          updated_at?: string
         }
       }
       conversations: {

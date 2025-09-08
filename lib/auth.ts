@@ -68,7 +68,7 @@ export const checkUsernameAvailability = async (username: string): Promise<boole
   }
 }
 
-// Sign up function
+// Sign up function - simplified since database trigger handles profile creation
 export const signUp = async ({ email, password, username, fullName }: SignUpData) => {
   try {
     // Validate inputs
@@ -92,7 +92,7 @@ export const signUp = async ({ email, password, username, fullName }: SignUpData
       throw new Error("Username is already taken")
     }
 
-    // Sign up with Supabase Auth
+    // Sign up with Supabase Auth - trigger will automatically create profile
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -108,20 +108,7 @@ export const signUp = async ({ email, password, username, fullName }: SignUpData
       throw new Error(error.message)
     }
 
-    // Try to create user profile, but don't fail if it doesn't work
-    if (data.user) {
-      try {
-        await supabase.from("user_profiles").insert({
-          id: data.user.id,
-          username,
-          email,
-          full_name: fullName,
-        })
-      } catch (profileError) {
-        console.log("Profile creation failed, but user was created:", profileError)
-      }
-    }
-
+    // No need to manually create profile - database trigger handles it!
     return { user: data.user, session: data.session }
   } catch (error) {
     console.error("Signup error:", error)

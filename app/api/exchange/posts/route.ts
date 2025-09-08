@@ -11,29 +11,45 @@ export async function GET(request: NextRequest) {
       .from("exchange_posts")
       .select(`
         *,
-        user_profiles (
-          id,
+        user_profiles!exchange_posts_user_id_fkey (
           username,
-          avatar_url
+          full_name
         )
       `)
       .eq("status", "active")
+      .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
 
-    if (category && category !== "all") {
+    if (category) {
       query = query.eq("category", category)
     }
 
-    const { data: posts, error } = await query
+    const { data, error } = await query
 
     if (error) {
-      console.error("Database error:", error)
-      return NextResponse.json({ error: "Failed to fetch posts" }, { status: 500 })
+      console.error("Error fetching exchange posts:", error)
+      return NextResponse.json({ error: "Failed to fetch exchange posts" }, { status: 500 })
     }
 
-    return NextResponse.json({ posts: posts || [] })
+    // Transform data to match frontend interface
+    const transformedData =
+      data?.map((post) => ({
+        id: post.id,
+        title: post.title,
+        description: post.description,
+        price: post.price,
+        price_negotiability: post.price_negotiability,
+        category: post.category,
+        poster: post.user_profiles?.full_name || post.user_profiles?.username || "Anonymous",
+        rating: post.rating,
+        review_count: post.review_count,
+        created_at: post.created_at,
+        expires_at: post.expires_at,
+      })) || []
+
+    return NextResponse.json(transformedData)
   } catch (error) {
-    console.error("API error:", error)
+    console.error("Unexpected error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
@@ -43,46 +59,54 @@ export async function POST(request: NextRequest) {
     const supabase = createClient()
     const body = await request.json()
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const { title, description, price, price_negotiability = "non-negotiable", category, duration_days, user_id } = body
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const { title, description, price, price_negotiability, category, duration_days } = body
-
-    if (!title || !description || !price || !category || !duration_days) {
+    // Validate required fields
+    if (!title || !description || !price || !category || !duration_days || !user_id) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + duration_days)
+    // Validate category
+    const validCategories = ["Concert Tickets", "Dorm Items", "Preprofessional Help", "Food Truck Line Service"]
+    if (!validCategories.includes(category)) {
+      return NextResponse.json({ error: "Invalid category" }, { status: 400 })
+    }
+
+    // Validate price
+    if (typeof price !== "number" || price < 0) {
+      return NextResponse.json({ error: "Price must be a non-negative number" }, { status: 400 })
+    }
+
+    // Validate duration
+    if (typeof duration_days !== "number" || duration_days < 1 || duration_days > 30) {
+      return NextResponse.json({ error: "Duration must be between 1 and 30 days" }, { status: 400 })
+    }
 
     const { data, error } = await supabase
       .from("exchange_posts")
       .insert({
-        user_id: user.id,
         title,
         description,
-        price: Number(price),
-        price_negotiability: price_negotiability || "non-negotiable",
+        price,
+        price_negotiability,
         category,
-        expires_at: expiresAt.toISOString(),
+        duration_days,
+        user_id,
         status: "active",
+        rating: null,
+        review_count: 0,
       })
       .select()
       .single()
 
     if (error) {
-      console.error("Database error:", error)
-      return NextResponse.json({ error: "Failed to create post" }, { status: 500 })
+      console.error("Error creating exchange post:", error)
+      return NextResponse.json({ error: "Failed to create exchange post" }, { status: 500 })
     }
 
-    return NextResponse.json({ post: data }, { status: 201 })
+    return NextResponse.json(data, { status: 201 })
   } catch (error) {
-    console.error("API error:", error)
+    console.error("Unexpected error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
