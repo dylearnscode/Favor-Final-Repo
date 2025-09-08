@@ -1,27 +1,21 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { signIn } from "@/lib/auth"
+import { createClient } from "@/lib/supabase"
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { email, password } = body
+    const supabase = createClient()
+    const { error } = await supabase.auth.signOut()
 
-    if (!email || !password) {
-      return NextResponse.json({ error: "Email and password are required" }, { status: 400 })
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    const result = await signIn({ email, password })
-
-    return NextResponse.json({
-      success: true,
-      user: result.user,
-      session: result.session,
-    })
+    return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Signin API error:", error)
+    console.error("Signout API error:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "An error occurred during signin" },
-      { status: 400 },
+      { error: error instanceof Error ? error.message : "An error occurred during signout" },
+      { status: 500 },
     )
   }
 }
