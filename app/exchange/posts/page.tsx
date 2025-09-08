@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, DollarSign, Calendar, FileText, Type, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -12,11 +11,13 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/use-auth"
 import BottomNav from "@/components/bottom-nav"
 
 export default function PostService() {
   const router = useRouter()
   const { toast } = useToast()
+  const { user, loading: authLoading } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
@@ -28,6 +29,18 @@ export default function PostService() {
     duration: "",
   })
 
+  // Redirect to signin if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to post a service.",
+        variant: "destructive",
+      })
+      router.push("/auth/signin")
+    }
+  }, [user, authLoading, router, toast])
+
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -37,6 +50,16 @@ export default function PostService() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to post a service.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -50,7 +73,7 @@ export default function PostService() {
         price_negotiability: formData.priceNegotiability,
         category: formData.category,
         duration_days: Number.parseInt(formData.duration),
-        user_id: "00000000-0000-0000-0000-000000000000", // TODO: Replace with actual user ID from auth
+        user_id: user.id, // Use actual authenticated user ID
       }
 
       const response = await fetch("/api/exchange/posts", {
@@ -74,7 +97,7 @@ export default function PostService() {
         description: "Your service has been posted successfully.",
       })
 
-      router.push("/exchange/main")
+      router.push("/exchange")
     } catch (error) {
       console.error("Error posting service:", error)
       toast({
@@ -88,7 +111,24 @@ export default function PostService() {
   }
 
   const handleBack = () => {
-    router.push("/exchange/main")
+    router.push("/exchange")
+  }
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render form if not authenticated (will redirect)
+  if (!user) {
+    return null
   }
 
   const isFormValid =
