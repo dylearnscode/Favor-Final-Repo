@@ -1,216 +1,125 @@
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Create user_profiles table
-CREATE TABLE IF NOT EXISTS public.user_profiles (
-    id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
+-- Drop existing tables if they exist (for clean setup)
+DROP TABLE IF EXISTS exchange_posts CASCADE;
+DROP TABLE IF EXISTS messages CASCADE;
+DROP TABLE IF EXISTS conversations CASCADE;
+DROP TABLE IF EXISTS user_profiles CASCADE;
+
+-- User Profiles Table
+CREATE TABLE user_profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    username TEXT UNIQUE,
     full_name TEXT,
+    email TEXT,
     avatar_url TEXT,
     bio TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create exchange_posts table
-CREATE TABLE IF NOT EXISTS public.exchange_posts (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE NOT NULL,
+-- Exchange Posts Table
+CREATE TABLE exchange_posts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
     price DECIMAL(10,2) NOT NULL,
-    price_negotiability TEXT CHECK (price_negotiability IN ('negotiable', 'non-negotiable')) DEFAULT 'non-negotiable',
-    category TEXT CHECK (category IN ('Concert Tickets', 'Dorm Items', 'Preprofessional Help', 'Food Truck Line Service')) NOT NULL,
-    duration_days INTEGER NOT NULL,
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    status TEXT CHECK (status IN ('active', 'inactive', 'completed')) DEFAULT 'active',
-    rating DECIMAL(3,2) CHECK (rating >= 0 AND rating <= 5),
+    price_negotiability TEXT DEFAULT 'non-negotiable' CHECK (price_negotiability IN ('negotiable', 'non-negotiable')),
+    category TEXT NOT NULL,
+    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'sold', 'expired', 'deleted')),
+    rating DECIMAL(3,2) DEFAULT NULL,
     review_count INTEGER DEFAULT 0,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create rideshare_posts table
-CREATE TABLE IF NOT EXISTS public.rideshare_posts (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE NOT NULL,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
-    departure_location TEXT NOT NULL,
-    destination TEXT NOT NULL,
-    departure_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    available_seats INTEGER NOT NULL CHECK (available_seats > 0),
-    price_per_person DECIMAL(10,2) NOT NULL CHECK (price_per_person >= 0),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Create academic_posts table
-CREATE TABLE IF NOT EXISTS public.academic_posts (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE NOT NULL,
-    department TEXT NOT NULL,
-    course TEXT NOT NULL,
-    title TEXT NOT NULL,
-    resource TEXT NOT NULL,
-    pdf_url TEXT NOT NULL,
-    upload_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    popularity INTEGER DEFAULT 0,
-    file_size INTEGER,
-    file_type TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Create conversations table
-CREATE TABLE IF NOT EXISTS public.conversations (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    participant_1 UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE NOT NULL,
-    participant_2 UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE NOT NULL,
+-- Conversations Table
+CREATE TABLE conversations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    participant_1 UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    participant_2 UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     last_message_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(participant_1, participant_2)
 );
 
--- Create messages table
-CREATE TABLE IF NOT EXISTS public.messages (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    conversation_id UUID REFERENCES public.conversations(id) ON DELETE CASCADE NOT NULL,
-    sender_id UUID REFERENCES public.user_profiles(id) ON DELETE CASCADE NOT NULL,
+-- Messages Table
+CREATE TABLE messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    sender_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    is_read BOOLEAN DEFAULT FALSE,
-    read_at TIMESTAMP WITH TIME ZONE
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_user_profiles_username ON public.user_profiles(username);
-CREATE INDEX IF NOT EXISTS idx_user_profiles_email ON public.user_profiles(email);
+-- Indexes for better performance
+CREATE INDEX idx_exchange_posts_user_id ON exchange_posts(user_id);
+CREATE INDEX idx_exchange_posts_category ON exchange_posts(category);
+CREATE INDEX idx_exchange_posts_status ON exchange_posts(status);
+CREATE INDEX idx_exchange_posts_created_at ON exchange_posts(created_at DESC);
+CREATE INDEX idx_conversations_participants ON conversations(participant_1, participant_2);
+CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
+CREATE INDEX idx_messages_created_at ON messages(created_at DESC);
+CREATE INDEX idx_user_profiles_username ON user_profiles(username);
 
-CREATE INDEX IF NOT EXISTS idx_exchange_posts_user_id ON public.exchange_posts(user_id);
-CREATE INDEX IF NOT EXISTS idx_exchange_posts_category ON public.exchange_posts(category);
-CREATE INDEX IF NOT EXISTS idx_exchange_posts_status ON public.exchange_posts(status);
-CREATE INDEX IF NOT EXISTS idx_exchange_posts_expires_at ON public.exchange_posts(expires_at);
-CREATE INDEX IF NOT EXISTS idx_exchange_posts_created_at ON public.exchange_posts(created_at);
-
-CREATE INDEX IF NOT EXISTS idx_rideshare_posts_user_id ON public.rideshare_posts(user_id);
-CREATE INDEX IF NOT EXISTS idx_rideshare_posts_departure_time ON public.rideshare_posts(departure_time);
-CREATE INDEX IF NOT EXISTS idx_rideshare_posts_created_at ON public.rideshare_posts(created_at);
-
-CREATE INDEX IF NOT EXISTS idx_academic_posts_user_id ON public.academic_posts(user_id);
-CREATE INDEX IF NOT EXISTS idx_academic_posts_department ON public.academic_posts(department);
-CREATE INDEX IF NOT EXISTS idx_academic_posts_course ON public.academic_posts(course);
-CREATE INDEX IF NOT EXISTS idx_academic_posts_created_at ON public.academic_posts(created_at);
-
-CREATE INDEX IF NOT EXISTS idx_conversations_participant_1 ON public.conversations(participant_1);
-CREATE INDEX IF NOT EXISTS idx_conversations_participant_2 ON public.conversations(participant_2);
-CREATE INDEX IF NOT EXISTS idx_conversations_last_message_at ON public.conversations(last_message_at);
-
-CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON public.messages(conversation_id);
-CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON public.messages(sender_id);
-CREATE INDEX IF NOT EXISTS idx_messages_created_at ON public.messages(created_at);
-CREATE INDEX IF NOT EXISTS idx_messages_is_read ON public.messages(is_read);
-
--- Disable Row Level Security to fix permission issues
-ALTER TABLE public.user_profiles DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.exchange_posts DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.rideshare_posts DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.academic_posts DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.conversations DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.messages DISABLE ROW LEVEL SECURITY;
-
--- Drop all existing policies
-DROP POLICY IF EXISTS "Users can view all profiles" ON public.user_profiles;
-DROP POLICY IF EXISTS "Users can update own profile" ON public.user_profiles;
-DROP POLICY IF EXISTS "Users can insert own profile" ON public.user_profiles;
-DROP POLICY IF EXISTS "Enable read access for all users" ON public.user_profiles;
-DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON public.user_profiles;
-DROP POLICY IF EXISTS "Enable update for users based on user_id" ON public.user_profiles;
-
-DROP POLICY IF EXISTS "Users can view all exchange posts" ON public.exchange_posts;
-DROP POLICY IF EXISTS "Users can create exchange posts" ON public.exchange_posts;
-DROP POLICY IF EXISTS "Users can update own exchange posts" ON public.exchange_posts;
-DROP POLICY IF EXISTS "Enable read access for all users" ON public.exchange_posts;
-DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON public.exchange_posts;
-DROP POLICY IF EXISTS "Enable update for users based on user_id" ON public.exchange_posts;
-DROP POLICY IF EXISTS "Enable delete for users based on user_id" ON public.exchange_posts;
-
--- Grant necessary permissions to fix access issues
-GRANT ALL ON public.user_profiles TO anon, authenticated;
-GRANT ALL ON public.exchange_posts TO anon, authenticated;
-GRANT ALL ON public.rideshare_posts TO anon, authenticated;
-GRANT ALL ON public.academic_posts TO anon, authenticated;
-GRANT ALL ON public.conversations TO anon, authenticated;
-GRANT ALL ON public.messages TO anon, authenticated;
-
--- Grant usage on sequences
-GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
-
--- Function to handle automatic user profile creation
-CREATE OR REPLACE FUNCTION public.handle_new_user()
+-- Function to automatically create user profile
+CREATE OR REPLACE FUNCTION create_user_profile()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.user_profiles (id, username, email, full_name)
+    INSERT INTO user_profiles (id, email, username, full_name)
     VALUES (
         NEW.id,
-        COALESCE(NEW.raw_user_meta_data->>'username', 'user_' || substr(NEW.id::text, 1, 8)),
         NEW.email,
-        COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'fullName')
+        COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
+        COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1))
     );
     RETURN NEW;
-EXCEPTION
-    WHEN others THEN
-        RAISE LOG 'Error creating user profile for %: %', NEW.id, SQLERRM;
-        RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Drop existing trigger if it exists
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-
--- Create trigger for automatic user profile creation
-CREATE TRIGGER on_auth_user_created
+-- Trigger to create user profile on signup
+DROP TRIGGER IF EXISTS create_user_profile_trigger ON auth.users;
+CREATE TRIGGER create_user_profile_trigger
     AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+    FOR EACH ROW
+    EXECUTE FUNCTION create_user_profile();
 
--- Function to automatically delete expired posts
-CREATE OR REPLACE FUNCTION public.cleanup_expired_posts()
-RETURNS void AS $$
-BEGIN
-    DELETE FROM public.exchange_posts 
-    WHERE expires_at < NOW() AND status = 'active';
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Function to set expires_at automatically
-CREATE OR REPLACE FUNCTION public.set_expires_at()
+-- Function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.expires_at = NEW.created_at + (NEW.duration_days || ' days')::INTERVAL;
+    NEW.updated_at = NOW();
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger to set expires_at on insert
-DROP TRIGGER IF EXISTS set_expires_at_trigger ON public.exchange_posts;
-CREATE TRIGGER set_expires_at_trigger
-    BEFORE INSERT ON public.exchange_posts
-    FOR EACH ROW EXECUTE FUNCTION public.set_expires_at();
+-- Triggers for updated_at
+CREATE TRIGGER update_user_profiles_updated_at
+    BEFORE UPDATE ON user_profiles
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at();
 
--- Function to update last_message_at in conversations
-CREATE OR REPLACE FUNCTION public.update_conversation_timestamp()
-RETURNS TRIGGER AS $$
-BEGIN
-    UPDATE public.conversations 
-    SET last_message_at = NEW.created_at 
-    WHERE id = NEW.conversation_id;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+CREATE TRIGGER update_exchange_posts_updated_at
+    BEFORE UPDATE ON exchange_posts
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at();
 
--- Trigger to update conversation timestamp when message is sent
-DROP TRIGGER IF EXISTS update_conversation_timestamp_trigger ON public.messages;
-CREATE TRIGGER update_conversation_timestamp_trigger
-    AFTER INSERT ON public.messages
-    FOR EACH ROW EXECUTE FUNCTION public.update_conversation_timestamp();
+-- Disable RLS and grant permissions
+ALTER TABLE user_profiles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE exchange_posts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE conversations DISABLE ROW LEVEL SECURITY;
+ALTER TABLE messages DISABLE ROW LEVEL SECURITY;
+
+-- Grant permissions
+GRANT ALL ON user_profiles TO authenticated;
+GRANT ALL ON exchange_posts TO authenticated;
+GRANT ALL ON conversations TO authenticated;
+GRANT ALL ON messages TO authenticated;
+
+GRANT ALL ON user_profiles TO anon;
+GRANT ALL ON exchange_posts TO anon;
+GRANT ALL ON conversations TO anon;
+GRANT ALL ON messages TO anon;
