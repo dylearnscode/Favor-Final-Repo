@@ -124,6 +124,106 @@ export type Database = {
           file_type?: string | null
         }
       }
+      exchange_posts: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          price: number
+          price_negotiability: "negotiable" | "non-negotiable"
+          category: "Concert Tickets" | "Dorm Items" | "Preprofessional Help" | "Food Truck Line Service"
+          user_id: string
+          status: "active" | "inactive" | "expired"
+          duration_days: number
+          expires_at: string
+          rating: number | null
+          review_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          price: number
+          price_negotiability?: "negotiable" | "non-negotiable"
+          category: "Concert Tickets" | "Dorm Items" | "Preprofessional Help" | "Food Truck Line Service"
+          user_id: string
+          status?: "active" | "inactive" | "expired"
+          duration_days: number
+          expires_at?: string
+          rating?: number | null
+          review_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          price?: number
+          price_negotiability?: "negotiable" | "non-negotiable"
+          category?: "Concert Tickets" | "Dorm Items" | "Preprofessional Help" | "Food Truck Line Service"
+          user_id?: string
+          status?: "active" | "inactive" | "expired"
+          duration_days?: number
+          expires_at?: string
+          rating?: number | null
+          review_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      conversations: {
+        Row: {
+          id: string
+          participant_1: string
+          participant_2: string
+          created_at: string
+          last_message_at: string
+        }
+        Insert: {
+          id?: string
+          participant_1: string
+          participant_2: string
+          created_at?: string
+          last_message_at?: string
+        }
+        Update: {
+          id?: string
+          participant_1?: string
+          participant_2?: string
+          last_message_at?: string
+        }
+      }
+      messages: {
+        Row: {
+          id: string
+          conversation_id: string
+          sender_id: string
+          content: string
+          created_at: string
+          is_read: boolean
+          read_at: string | null
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          sender_id: string
+          content: string
+          created_at?: string
+          is_read?: boolean
+          read_at?: string | null
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          sender_id?: string
+          content?: string
+          is_read?: boolean
+          read_at?: string | null
+        }
+      }
     }
   }
 }

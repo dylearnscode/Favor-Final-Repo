@@ -1,30 +1,39 @@
-# Create website design
+# Favor - Campus Community App
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+A Next.js application for campus communities to connect, share resources, and help each other.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/derrickyangpersonalinbox-2538s-projects/v0-create-website-design)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/b7EOjee7zCq)
+## Features
 
-## Overview
+- **Academic**: Share and access study materials, textbooks, and resources
+- **Rideshare**: Organize group rides and split costs
+- **Exchange**: Buy and sell items within your campus community
+- **Messages**: Direct messaging between users
+- **Authentication**: Secure user accounts with Supabase
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+## Tech Stack
 
-## Deployment
+- Next.js 14 with App Router
+- TypeScript
+- Tailwind CSS
+- Supabase (Database & Auth)
+- shadcn/ui components
 
-Your project is live at:
+## Getting Started
 
-**[https://vercel.com/derrickyangpersonalinbox-2538s-projects/v0-create-website-design](https://vercel.com/derrickyangpersonalinbox-2538s-projects/v0-create-website-design)**
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Set up environment variables (see `.env.example`)
+4. Run the development server: `npm run dev`
+5. Open [http://localhost:3000](http://localhost:3000)
 
-## Build your app
+## Environment Variables
 
-Continue building your app on:
+\`\`\`
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+\`\`\`
 
-**[https://v0.dev/chat/projects/b7EOjee7zCq](https://v0.dev/chat/projects/b7EOjee7zCq)**
+## Database Setup
 
-## How It Works
-
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+Run the SQL scripts in the `scripts/` folder to set up your Supabase database tables.

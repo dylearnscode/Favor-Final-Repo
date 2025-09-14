@@ -9,6 +9,7 @@ import { BottomNav } from "@/components/bottom-nav"
 import { createClient } from "@/lib/supabase"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
+import HiveLoadingScreen from "@/components/hive-loading-screen"
 
 interface AcademicPost {
   id: string
@@ -24,7 +25,6 @@ interface AcademicPost {
   file_size?: number
 }
 
-// Move static data outside component to prevent recreation on each render
 const SAMPLE_ACADEMIC_POSTS: AcademicPost[] = [
   {
     id: "1",
@@ -119,33 +119,29 @@ const COURSES_BY_DEPARTMENT: Record<string, readonly string[]> = {
   History: ["History 1A", "History 1B", "History 1C", "History 100", "History 120"],
 } as const
 
-// Create supabase client outside component to prevent recreation
 const supabase = createClient()
 
 export default function Academic() {
   const router = useRouter()
   const [hasAuth, setHasAuth] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [showLoadingScreen, setShowLoadingScreen] = useState(true)
   const [selectedDepartment, setSelectedDepartment] = useState("All Departments")
   const [selectedCourse, setSelectedCourse] = useState("All Courses")
   const [searchQuery, setSearchQuery] = useState("")
   const [academicPosts, setAcademicPosts] = useState<AcademicPost[]>([])
 
   useEffect(() => {
-    // Check if user has bypassed auth or is authenticated
     const bypassAuth = localStorage.getItem("favor_bypass_auth") === "true"
 
     if (bypassAuth) {
       setHasAuth(true)
       setLoading(false)
     } else {
-      // Check for actual authentication (you can implement this later)
-      // For now, redirect to auth if no bypass
       router.push("/auth/signin")
     }
   }, [router])
 
-  // Memoize expensive calculations
   const filteredPosts = useMemo(() => {
     let filtered = academicPosts
 
@@ -183,17 +179,15 @@ export default function Academic() {
 
   const postsToShow = isSearching ? filteredPosts : academicPosts
 
-  // Optimize database loading with useCallback
   const loadAcademicPosts = useCallback(async () => {
     try {
       setLoading(true)
 
-      // Optimize query - only select needed fields and limit results
       const { data, error } = await supabase
         .from("academic_posts")
         .select("id, department, course, title, resource, pdf_url, uploaded_by, upload_date, popularity")
         .order("popularity", { ascending: false })
-        .limit(100) // Limit initial load for performance
+        .limit(100)
 
       if (error) {
         console.log("Database not connected, using sample data")
@@ -209,17 +203,15 @@ export default function Academic() {
     }
   }, [])
 
-  // Load posts only once on mount
   useEffect(() => {
     if (hasAuth) {
       loadAcademicPosts()
     }
   }, [loadAcademicPosts, hasAuth])
 
-  // Optimize event handlers with useCallback
   const handleDepartmentChange = useCallback((department: string) => {
     setSelectedDepartment(department)
-    setSelectedCourse("All Courses") // Reset course when department changes
+    setSelectedCourse("All Courses")
   }, [])
 
   const handleCourseChange = useCallback((course: string) => {
@@ -234,12 +226,20 @@ export default function Academic() {
     window.open(pdfUrl, "_blank", "noopener,noreferrer")
   }, [])
 
+  const handleLoadingComplete = useCallback(() => {
+    setShowLoadingScreen(false)
+  }, [])
+
+  if (showLoadingScreen) {
+    return <HiveLoadingScreen onComplete={handleLoadingComplete} />
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white pb-20">
         <div className="flex items-center justify-center h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto mb-4"></div>
             <p className="text-gray-400">Loading academic materials...</p>
           </div>
         </div>
@@ -253,34 +253,31 @@ export default function Academic() {
 
   return (
     <div className="min-h-screen bg-black text-white pb-20">
-      {/* Header */}
       <div className="sticky top-0 bg-black/95 backdrop-blur-sm border-b border-gray-800 p-4 z-10">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg flex items-center justify-center">
               <BookOpen className="w-5 h-5 text-black" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-white">Academic</h1>
-              <p className="text-sm text-gray-400 font-medium">Study materials & resources</p>
+              <h1 className="text-2xl font-bold tracking-tight text-white">Academic Hive</h1>
+              <p className="text-sm text-amber-400 font-medium">Collaborative learning community</p>
             </div>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className="text-white hover:bg-gray-800"
+            className="text-white hover:bg-amber-900/20 hover:text-amber-400"
             onClick={() => router.push("/academic/post")}
           >
             <Plus className="w-6 h-6" />
           </Button>
         </div>
 
-        {/* Search Bars */}
         <div className="flex gap-3 mb-4">
-          {/* Department Search */}
           <div className="w-32">
             <Select value={selectedDepartment} onValueChange={handleDepartmentChange}>
-              <SelectTrigger className="bg-gray-900 border-gray-700 text-white">
+              <SelectTrigger className="bg-gray-900 border-gray-700 text-white focus:border-amber-500">
                 <SelectValue placeholder="Department" />
               </SelectTrigger>
               <SelectContent className="bg-gray-900 border-gray-700">
@@ -294,14 +291,13 @@ export default function Academic() {
             </Select>
           </div>
 
-          {/* Course Search */}
           <div className="w-40">
             <Select
               value={selectedCourse}
               onValueChange={handleCourseChange}
               disabled={!selectedDepartment || selectedDepartment === "All Departments"}
             >
-              <SelectTrigger className="bg-gray-900 border-gray-700 text-white">
+              <SelectTrigger className="bg-gray-900 border-gray-700 text-white focus:border-amber-500">
                 <SelectValue placeholder="Course" />
               </SelectTrigger>
               <SelectContent className="bg-gray-900 border-gray-700">
@@ -315,7 +311,6 @@ export default function Academic() {
             </Select>
           </div>
 
-          {/* General Search */}
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -323,14 +318,13 @@ export default function Academic() {
                 value={searchQuery}
                 onChange={handleSearchChange}
                 placeholder="Search resources..."
-                className="pl-10 bg-gray-900 border-gray-700 text-white placeholder-gray-400"
+                className="pl-10 bg-gray-900 border-gray-700 text-white placeholder-gray-400 focus:border-amber-500"
               />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Feed */}
       <div className="p-4">
         {postsToShow.length === 0 ? (
           <div className="text-center py-12">
@@ -345,7 +339,7 @@ export default function Academic() {
             {postsToShow.map((post) => (
               <div
                 key={post.id}
-                className="bg-gray-900 border border-gray-800 rounded-lg p-4 flex items-center justify-between hover:bg-gray-800 transition-colors"
+                className="bg-gray-900 border border-gray-800 rounded-lg p-4 flex items-center justify-between hover:bg-gray-800 hover:border-amber-900/50 transition-colors"
               >
                 <div className="flex-1 min-w-0">
                   <h3 className="text-lg font-bold text-white mb-1 truncate">
@@ -355,7 +349,7 @@ export default function Academic() {
                 </div>
                 <Button
                   onClick={() => handlePDFView(post.pdf_url)}
-                  className="bg-white text-black hover:bg-gray-200 font-medium px-6 ml-4 flex-shrink-0"
+                  className="bg-gradient-to-r from-amber-500 to-amber-600 text-black hover:from-amber-600 hover:to-amber-700 font-medium px-6 ml-4 flex-shrink-0"
                 >
                   View
                 </Button>

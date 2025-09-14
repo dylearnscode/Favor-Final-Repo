@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -36,7 +35,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   const handleBypass = () => {
     localStorage.setItem("favor_bypass_auth", "true")
-    router.push("/academic")
+    router.push("/exchange")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,10 +76,14 @@ export function AuthForm({ mode }: AuthFormProps) {
         const result = await signIn({ email, password })
 
         toast({
-          title: "Signed in successfully",
+          title: "Signed in successfully", 
           description: "Welcome back!",
         })
-        router.push("/academic")
+
+        // Wait a moment for the session to be established, then redirect
+        setTimeout(() => {
+          router.push("/exchange")
+        }, 500)
       }
     } catch (error) {
       console.error("Auth error:", error)
@@ -148,7 +151,6 @@ export function AuthForm({ mode }: AuthFormProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                // Remove restrictive validation attributes
                 pattern="[^@\s]+@[^@\s]+\.[^@\s]+"
                 title="Please enter a valid email address"
               />
