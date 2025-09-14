@@ -1,9 +1,21 @@
-import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase"
+import { type NextRequest, NextResponse } from "next/server"
+import { createServerClient } from "@supabase/ssr"
+import { cookies } from "next/headers"
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+        },
+      },
+    )
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
 
@@ -67,18 +79,21 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+        },
+      },
+    )
     const body = await request.json()
 
-    const {
-      title,
-      description,
-      price,
-      price_negotiability = "non-negotiable",
-      category,
-      duration_days,
-      user_id,
-    } = body
+    const { title, description, price, price_negotiability = "non-negotiable", category, duration_days, user_id } = body
 
     // Validate required fields
     if (!title || !description || price == null || !category || !duration_days || !user_id) {
@@ -108,7 +123,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user is authenticated and matches user_id
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (!user || user.id !== user_id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
