@@ -1,282 +1,243 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Search, Plus, Star } from "lucide-react"
-import { BottomNav } from "@/components/bottom-nav"
+import { Search, Plus, Star, Loader2 } from "lucide-react"
+import BottomNav from "@/components/bottom-nav"
 import { useRouter } from "next/navigation"
-import SplitText from "@/components/split-text"
 
 interface ServiceItem {
   id: string
   title: string
-  subtitle: string
-  price: string
-  poster: string
-  rating?: number
-  reviews?: number
-  timeEstimate?: string
+  description: string
+  price: number
+  price_negotiability: "negotiable" | "non-negotiable"
   category: string
+  poster: string
+  rating?: number | null
+  review_count?: number
+  created_at: string
+  expires_at: string
 }
 
-const SAMPLE_SERVICES: ServiceItem[] = [
-  {
-    id: "1",
-    title: "Wait in line for Salpicon",
-    subtitle: "Saves you 40 minutes, Courier swipes for you",
-    price: "$12",
-    poster: "Sarah K.",
-    rating: 4.9,
-    reviews: 23,
-    timeEstimate: "Available now",
-    category: "Food Services",
-  },
-  {
-    id: "2",
-    title: "Coffee Chat with UConsulting Director",
-    subtitle: "Get ahead for recruitment.",
-    price: "$15",
-    poster: "Mike R.",
-    rating: 5.0,
-    reviews: 18,
-    timeEstimate: "30 min",
-    category: "Career Help",
-  },
-  {
-    id: "3",
-    title: "Resume review from Google APM intern",
-    subtitle: "70% of my mentees have FAANG offers",
-    price: "$20",
-    poster: "Emma L.",
-    rating: 4.8,
-    reviews: 45,
-    timeEstimate: "24 hours",
-    category: "Career Help",
-  },
-  {
-    id: "4",
-    title: "Concert ticket pickup service",
-    subtitle: "I'll wait in line and deliver to your dorm",
-    price: "$8",
-    poster: "Alex M.",
-    rating: 4.7,
-    reviews: 12,
-    timeEstimate: "Same day",
-    category: "Event Services",
-  },
-]
+const CATEGORIES = ["Concert Tickets", "Dorm Items", "Preprofessional Help", "Food Truck Line Service"]
 
 export default function Exchange() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
-  const [showEntry, setShowEntry] = useState(true)
-  const [showSubtitle, setShowSubtitle] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [services, setServices] = useState<ServiceItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const filteredServices = SAMPLE_SERVICES.filter(
-    (service) =>
-      service.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.subtitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.category.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+  const fetchServices = async (category?: string) => {
+    try {
+      setLoading(true)
+      setError(null)
 
-  const handlePostClick = () => {
-    router.push("/exchange/post")
+      const url = new URL("/api/exchange/posts", window.location.origin)
+      if (category) {
+        url.searchParams.set("category", category)
+      }
+
+      const response = await fetch(url.toString())
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch services")
+      }
+
+      const data = await response.json()
+      setServices(data)
+    } catch (err) {
+      console.error("Error fetching services:", err)
+      setError(err instanceof Error ? err.message : "Failed to load services")
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
-    // Show subtitle after main title animation starts
-    const subtitleTimer = setTimeout(() => {
-      setShowSubtitle(true)
-    }, 800)
+    fetchServices(selectedCategory || undefined)
+  }, [selectedCategory])
 
-    // Hide entry screen and show main exchange page
-    const entryTimer = setTimeout(() => {
-      setShowEntry(false)
-    }, 2500)
+  const filteredServices = services.filter((service) => {
+    const matchesSearch =
+      service.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      service.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      service.category.toLowerCase().includes(searchQuery.toLowerCase())
 
-    return () => {
-      clearTimeout(subtitleTimer)
-      clearTimeout(entryTimer)
-    }
-  }, [])
+    return matchesSearch
+  })
+
+  const handlePostClick = () => {
+    console.log("Post button clicked, navigating to /exchange/posts")
+    router.push("/exchange/posts")
+  }
+
+  const handleBruinBashClick = () => {
+    console.log("BruinBash clicked, navigating to specload")
+    router.push("/exchange/specials/specload")
+  }
+
+  const handleCategoryClick = (category: string) => {
+    const newCategory = selectedCategory === category ? null : category
+    setSelectedCategory(newCategory)
+  }
+
+  const handleRefresh = () => {
+    fetchServices(selectedCategory || undefined)
+  }
 
   return (
-    <div className="relative overflow-hidden">
-      <AnimatePresence>
-        {showEntry && (
-          <motion.div
-            initial={{ x: 0 }}
-            exit={{ x: "-100%" }}
-            transition={{ duration: 0.6, ease: "easeInOut" }}
-            className="fixed inset-0 z-50 min-h-screen bg-black text-white flex flex-col items-center justify-center px-4"
+    <div className="min-h-screen bg-black text-white pb-20 safe-area-inset">
+      {/* Header with Search */}
+      <div className="sticky top-0 bg-black/95 backdrop-blur-sm border-b border-gray-800 p-4 z-10 pt-safe">
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <Input
+            placeholder="Search services, tutoring, tickets..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 bg-gray-900 border-gray-700 text-white placeholder-gray-400 h-12 rounded-lg"
+          />
+        </div>
+
+        {/* Filter Options */}
+        <div className="flex items-center gap-3 mb-4">
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full bg-gray-900 border-gray-700 text-white hover:bg-gray-800"
           >
-            <div className="text-center">
-              <SplitText
-                text="Favor Exchange"
-                className="text-6xl md:text-8xl font-bold text-white mb-8"
-                tag="h1"
-                delay={80}
-                duration={0.8}
-                ease="power3.out"
-                splitType="chars"
-                from={{ opacity: 0, y: 60, rotationX: -90 }}
-                to={{ opacity: 1, y: 0, rotationX: 0 }}
-                threshold={0}
-                rootMargin="0px"
-                textAlign="center"
+            <span className="mr-2">💰</span>
+            Price
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full bg-gray-900 border-gray-700 text-white hover:bg-gray-800"
+          >
+            Sort
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full bg-gray-900 border-gray-700 text-white hover:bg-gray-800"
+          >
+            Top Rated
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            className="rounded-full bg-gray-900 border-gray-700 text-white hover:bg-gray-800"
+          >
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Category Filters */}
+      <div className="px-4 py-4">
+        <div className="flex justify-between items-center">
+          {CATEGORIES.map((category) => (
+            <div
+              key={category}
+              className="flex flex-col items-center cursor-pointer"
+              onClick={() => handleCategoryClick(category)}
+            >
+              <div
+                className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 p-2 transition-colors ${
+                  selectedCategory === category ? "bg-blue-600" : "bg-white hover:bg-gray-200"
+                }`}
+              >
+                <span className={`text-2xl ${selectedCategory === category ? "text-white" : "text-black"}`}>
+                  {category === "Concert Tickets" && "🎫"}
+                  {category === "Dorm Items" && "🏠"}
+                  {category === "Preprofessional Help" && "💼"}
+                  {category === "Food Truck Line Service" && "🍽️"}
+                </span>
+              </div>
+              <span
+                className={`text-xs font-medium text-center ${
+                  selectedCategory === category ? "text-blue-400" : "text-gray-300"
+                }`}
+              >
+                {category}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Featured Service - BruinBash */}
+      <div className="px-4 py-2">
+        <Card
+          className="overflow-hidden shadow-sm border-gray-800 bg-gray-900 cursor-pointer hover:bg-gray-800 transition-all duration-200"
+          onClick={handleBruinBashClick}
+        >
+          <div className="relative">
+            <div className="h-48 overflow-hidden">
+              <img
+                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-tJPt0XsEADqwGKggB1EOq37NtDl8xm.png"
+                alt="BruinBash Concert"
+                className="w-full h-full object-cover"
               />
-
-              {showSubtitle && (
-                <SplitText
-                  text="Buy and sell services"
-                  className="text-xl md:text-2xl text-gray-400 font-light"
-                  tag="p"
-                  delay={60}
-                  duration={0.6}
-                  ease="power2.out"
-                  splitType="chars"
-                  from={{ opacity: 0, y: 30 }}
-                  to={{ opacity: 1, y: 0 }}
-                  threshold={0}
-                  rootMargin="0px"
-                  textAlign="center"
-                />
-              )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="min-h-screen bg-black text-white pb-20 safe-area-inset">
-        {/* Header with Search */}
-        <div className="sticky top-0 bg-black/95 backdrop-blur-sm border-b border-gray-800 p-4 z-10 pt-safe">
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <Input
-              placeholder="Search services, tutoring, tickets..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-gray-900 border-gray-700 text-white placeholder-gray-400 h-12 rounded-lg"
-            />
-          </div>
-
-          {/* Filter Options */}
-          <div className="flex items-center gap-3 mb-4">
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-full bg-gray-900 border-gray-700 text-white hover:bg-gray-800"
-            >
-              <span className="mr-2">💰</span>
-              Price
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-full bg-gray-900 border-gray-700 text-white hover:bg-gray-800"
-            >
-              Sort
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-full bg-gray-900 border-gray-700 text-white hover:bg-gray-800"
-            >
-              Top Rated
-            </Button>
-          </div>
-        </div>
-
-        {/* Category Icons */}
-        <div className="px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-2 p-2">
-                <img
-                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/521_REpWIE1BUiAwMjMtMjc.jpg-gkjNPhs7XOlhPfkji6OpY8tshQ1vPr.jpeg"
-                  alt="Concert"
-                  className="w-full h-full object-contain rounded-full"
-                />
-              </div>
-              <span className="text-xs font-medium text-gray-300">Concert Tickets</span>
-            </div>
-
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-2 p-2">
-                <img
-                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-lUz4mv0eL0DHh3LUSF5ugEyFAyferD.png"
-                  alt="Dorm Appliances"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <span className="text-xs font-medium text-gray-300">Dorm Appliances</span>
-            </div>
-
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-2 p-2">
-                <img
-                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-YaEScVT1iz8dnYlshrOfBrOns0CBNP.png"
-                  alt="Preprofessional Help"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <span className="text-xs font-medium text-gray-300">Preprofessional Help</span>
-            </div>
-
-            <div className="flex flex-col items-center">
-              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-2 p-2">
-                <img
-                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot%202025-09-07%20at%2012.32.26%E2%80%AFAM-DlU56pc3JqTn4aHB537AXEy28JrMXZ.png"
-                  alt="Food Truck Waiter"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <span className="text-xs font-medium text-gray-300">Food Truck Waiter</span>
+            <div className="absolute top-3 right-3">
+              <Badge className="bg-blue-600 text-white">Sponsored</Badge>
             </div>
           </div>
-        </div>
-
-        {/* Featured Service - BruinBash */}
-        <div className="px-4 py-2">
-          <Card className="overflow-hidden shadow-sm border-gray-800 bg-gray-900">
-            <div className="relative">
-              <div className="h-48 overflow-hidden">
-                <img
-                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-tJPt0XsEADqwGKggB1EOq37NtDl8xm.png"
-                  alt="BruinBash Concert"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="absolute top-3 right-3">
-                <Badge className="bg-blue-600 text-white">Sponsored</Badge>
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <h3 className="font-bold text-lg text-white">BruinBash</h3>
+                <p className="text-gray-400 text-sm">$$ • Event Services</p>
               </div>
             </div>
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <h3 className="font-bold text-lg text-white">BruinBash</h3>
-                  <p className="text-gray-400 text-sm">$$ • Event Services</p>
-                </div>
+            <div className="flex items-center justify-between text-sm text-gray-400">
+              <span>Available Now</span>
+              <div className="flex items-center gap-1">
+                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                <span className="text-white">4.8 (156)</span>
               </div>
-              <div className="flex items-center justify-between text-sm text-gray-400">
-                <span>Available Now</span>
-                <div className="flex items-center gap-1">
-                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  <span className="text-white">4.8 (156)</span>
-                </div>
-                <span>$5 Service Fee</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              <span>$5 Service Fee</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-        {/* Available Services Section */}
-        <div className="px-4 py-4">
-          <h2 className="text-xl font-bold mb-4 text-white">Available Services</h2>
+      {/* Available Services Section */}
+      <div className="px-4 py-4">
+        <h2 className="text-xl font-bold mb-4 text-white">
+          Available Services
+          {selectedCategory && <span className="text-sm font-normal text-gray-400 ml-2">• {selectedCategory}</span>}
+        </h2>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+            <span className="ml-2 text-gray-400">Loading services...</span>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">⚠️</span>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-400 mb-2">Error loading services</h3>
+            <p className="text-gray-500 mb-4">{error}</p>
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              className="text-white border-gray-700 hover:bg-gray-800 bg-transparent"
+            >
+              Try Again
+            </Button>
+          </div>
+        ) : (
           <div className="space-y-4">
             {filteredServices.map((service) => (
               <Card
@@ -288,9 +249,10 @@ export default function Exchange() {
                     {/* Service Image/Icon */}
                     <div className="w-24 h-24 bg-gray-800 flex items-center justify-center flex-shrink-0">
                       <div className="text-2xl">
-                        {service.category === "Food Services" && "🍽️"}
-                        {service.category === "Career Help" && "💼"}
-                        {service.category === "Event Services" && "🎫"}
+                        {service.category === "Food Truck Line Service" && "🍽️"}
+                        {service.category === "Preprofessional Help" && "💼"}
+                        {service.category === "Concert Tickets" && "🎫"}
+                        {service.category === "Dorm Items" && "🏠"}
                       </div>
                     </div>
 
@@ -299,24 +261,28 @@ export default function Exchange() {
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
                           <h3 className="font-semibold text-base mb-1 text-white">{service.title}</h3>
-                          <p className="text-gray-400 text-sm mb-2 line-clamp-2">{service.subtitle}</p>
+                          <p className="text-gray-400 text-sm mb-2 line-clamp-2">{service.description}</p>
 
                           <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span>{service.timeEstimate}</span>
-                            {service.rating && (
+                            <span className="text-gray-400">By {service.poster}</span>
+                            {service.rating && service.review_count && service.review_count > 0 ? (
                               <div className="flex items-center gap-1">
                                 <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
                                 <span className="text-gray-400">
-                                  {service.rating} ({service.reviews})
+                                  {service.rating} ({service.review_count})
                                 </span>
                               </div>
+                            ) : (
+                              <span className="text-gray-500">No rating</span>
                             )}
                           </div>
                         </div>
 
                         <div className="text-right ml-4">
-                          <div className="font-bold text-lg text-white">{service.price}</div>
-                          <div className="text-xs text-gray-500">By {service.poster}</div>
+                          <div className="font-bold text-lg text-white">${service.price.toFixed(2)}</div>
+                          <div className="text-xs text-gray-500">
+                            {service.price_negotiability === "negotiable" ? "Negotiable" : "Fixed"}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -325,31 +291,44 @@ export default function Exchange() {
               </Card>
             ))}
           </div>
+        )}
 
-          {filteredServices.length === 0 && (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Search className="w-8 h-8 text-gray-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-400 mb-2">No services found</h3>
-              <p className="text-gray-500 mb-4">Try adjusting your search or check back later</p>
+        {!loading && !error && filteredServices.length === 0 && (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Search className="w-8 h-8 text-gray-600" />
             </div>
-          )}
-        </div>
-
-        {/* Floating Post Button */}
-        <div className="fixed bottom-24 right-6 z-20">
-          <Button
-            onClick={handlePostClick}
-            size="lg"
-            className="w-14 h-14 rounded-full bg-white text-black hover:bg-gray-200 shadow-lg hover:shadow-xl transition-all duration-200"
-          >
-            <Plus className="w-6 h-6" />
-          </Button>
-        </div>
-
-        <BottomNav activeTab="exchange" />
+            <h3 className="text-lg font-semibold text-gray-400 mb-2">No services found</h3>
+            <p className="text-gray-500 mb-4">
+              {selectedCategory
+                ? `No services found in "${selectedCategory}". Try a different category or search term.`
+                : "Try adjusting your search or check back later"}
+            </p>
+            {selectedCategory && (
+              <Button
+                variant="outline"
+                onClick={() => setSelectedCategory(null)}
+                className="text-white border-gray-700 hover:bg-gray-800"
+              >
+                Clear Filter
+              </Button>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Floating Post Button */}
+      <div className="fixed bottom-24 right-6 z-50">
+        <Button
+          onClick={handlePostClick}
+          size="lg"
+          className="w-14 h-14 rounded-full bg-white text-black hover:bg-gray-200 shadow-lg hover:shadow-xl transition-all duration-200"
+        >
+          <Plus className="w-6 h-6" />
+        </Button>
+      </div>
+
+      <BottomNav activeTab="exchange" />
     </div>
   )
 }
