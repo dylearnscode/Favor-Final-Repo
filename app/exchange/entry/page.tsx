@@ -17,7 +17,7 @@ export default function ExchangeEntry() {
 
     // Navigate to main exchange page after animations
     const navigationTimer = setTimeout(() => {
-      router.replace("/exchange/main")
+      router.replace("/exchange")
     }, 1500)
 
     return () => {

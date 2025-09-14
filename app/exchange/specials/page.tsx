@@ -15,7 +15,7 @@ export default function BruinBashSpecials() {
   }, [])
 
   const handleBack = () => {
-    router.push("/exchange/main")
+    router.push("/exchange")
   }
 
   const handleBuyClick = () => {
