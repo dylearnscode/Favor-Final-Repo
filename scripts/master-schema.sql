@@ -34,11 +34,13 @@ CREATE TABLE rideshare_posts (
   title VARCHAR(255) NOT NULL,
   description TEXT NOT NULL,
   departure_location VARCHAR(255) NOT NULL,
+  -- Added from_location column from fix-database-schema.sql
+  from_location TEXT,
   destination VARCHAR(255) NOT NULL,
   departure_time TIMESTAMP WITH TIME ZONE NOT NULL,
   available_seats INTEGER NOT NULL CHECK (available_seats > 0),
   price_per_person DECIMAL(10,2) NOT NULL CHECK (price_per_person >= 0),
-  user_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -50,7 +52,7 @@ CREATE TABLE academic_posts (
   title VARCHAR(255) NOT NULL,
   resource VARCHAR(255) NOT NULL,
   pdf_url TEXT NOT NULL,
-  user_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,
   upload_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   popularity INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -66,7 +68,7 @@ CREATE TABLE exchange_posts (
   price DECIMAL(10,2) NOT NULL CHECK (price >= 0),
   price_negotiability price_negotiability NOT NULL DEFAULT 'non-negotiable',
   category exchange_category NOT NULL,
-  user_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,
   status post_status NOT NULL DEFAULT 'active',
   duration_days INTEGER NOT NULL CHECK (duration_days > 0),
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -97,6 +99,19 @@ CREATE TABLE messages (
   is_read BOOLEAN DEFAULT FALSE,
   read_at TIMESTAMP WITH TIME ZONE
 );
+
+-- Add explicit foreign key constraints with names for Supabase schema cache
+ALTER TABLE rideshare_posts 
+ADD CONSTRAINT rideshare_posts_user_id_fkey 
+FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+
+ALTER TABLE academic_posts 
+ADD CONSTRAINT academic_posts_user_id_fkey 
+FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+
+ALTER TABLE exchange_posts 
+ADD CONSTRAINT exchange_posts_user_id_fkey 
+FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
 
 -- Function to automatically set expires_at based on duration_days
 CREATE OR REPLACE FUNCTION set_exchange_post_expiry()
@@ -148,40 +163,58 @@ ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE exchange_posts ENABLE ROW LEVEL SECURITY;
 
 -- User profiles policies
+DROP POLICY IF EXISTS "Users can view all profiles" ON user_profiles;
 CREATE POLICY "Users can view all profiles" ON user_profiles FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can update own profile" ON user_profiles;
 CREATE POLICY "Users can update own profile" ON user_profiles FOR UPDATE USING (auth.uid() = id);
 
 -- Rideshare posts policies
+DROP POLICY IF EXISTS "Anyone can view rideshare posts" ON rideshare_posts;
 CREATE POLICY "Anyone can view rideshare posts" ON rideshare_posts FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can create rideshare posts" ON rideshare_posts;
 CREATE POLICY "Users can create rideshare posts" ON rideshare_posts FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own rideshare posts" ON rideshare_posts;
 CREATE POLICY "Users can update own rideshare posts" ON rideshare_posts FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own rideshare posts" ON rideshare_posts;
 CREATE POLICY "Users can delete own rideshare posts" ON rideshare_posts FOR DELETE USING (auth.uid() = user_id);
 
 -- Academic posts policies
+DROP POLICY IF EXISTS "Anyone can view academic posts" ON academic_posts;
 CREATE POLICY "Anyone can view academic posts" ON academic_posts FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can create academic posts" ON academic_posts;
 CREATE POLICY "Users can create academic posts" ON academic_posts FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own academic posts" ON academic_posts;
 CREATE POLICY "Users can update own academic posts" ON academic_posts FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own academic posts" ON academic_posts;
 CREATE POLICY "Users can delete own academic posts" ON academic_posts FOR DELETE USING (auth.uid() = user_id);
 
 -- Exchange posts policies
-CREATE POLICY "Anyone can view active exchange posts" ON exchange_posts FOR SELECT USING (status = 'active' AND expires_at > NOW());
+DROP POLICY IF EXISTS "Anyone can view exchange posts" ON exchange_posts;
+CREATE POLICY "Anyone can view exchange posts" ON exchange_posts FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can create exchange posts" ON exchange_posts;
 CREATE POLICY "Users can create exchange posts" ON exchange_posts FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own exchange posts" ON exchange_posts;
 CREATE POLICY "Users can update own exchange posts" ON exchange_posts FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own exchange posts" ON exchange_posts;
 CREATE POLICY "Users can delete own exchange posts" ON exchange_posts FOR DELETE USING (auth.uid() = user_id);
 
 -- Conversations policies
+DROP POLICY IF EXISTS "Users can view own conversations" ON conversations;
 CREATE POLICY "Users can view own conversations" ON conversations FOR SELECT USING (auth.uid() = participant_1 OR auth.uid() = participant_2);
+DROP POLICY IF EXISTS "Users can create conversations" ON conversations;
 CREATE POLICY "Users can create conversations" ON conversations FOR INSERT WITH CHECK (auth.uid() = participant_1 OR auth.uid() = participant_2);
 
 -- Messages policies
-CREATE POLICY "Users can view messages in own conversations" ON messages FOR SELECT USING (
+DROP POLICY IF EXISTS "Users can view messages in their conversations" ON messages;
+CREATE POLICY "Users can view messages in their conversations" ON messages FOR SELECT USING (
   EXISTS (
     SELECT 1 FROM conversations 
     WHERE conversations.id = messages.conversation_id 
     AND (conversations.participant_1 = auth.uid() OR conversations.participant_2 = auth.uid())
   )
 );
-CREATE POLICY "Users can send messages in own conversations" ON messages FOR INSERT WITH CHECK (
+DROP POLICY IF EXISTS "Users can send messages in their conversations" ON messages;
+CREATE POLICY "Users can send messages in their conversations" ON messages FOR INSERT WITH CHECK (
   auth.uid() = sender_id AND
   EXISTS (
     SELECT 1 FROM conversations 
@@ -206,3 +239,18 @@ CREATE TRIGGER update_conversation_last_message_trigger
   AFTER INSERT ON messages
   FOR EACH ROW
   EXECUTE FUNCTION update_conversation_last_message();
+
+-- Add trigger to sync auth.users with user_profiles automatically
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO user_profiles (id, email, username)
+  VALUES (NEW.id, NEW.email, COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)));
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION handle_new_user();
