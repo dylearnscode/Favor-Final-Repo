@@ -11,9 +11,10 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Camera, Edit, Plus, MapPin, Calendar, Zap } from "lucide-react"
+import { Camera, Edit, Plus, MapPin, Calendar, LogOut } from "lucide-react"
 import { BottomNav } from "@/components/bottom-nav"
 import { useRouter } from "next/navigation"
+import { signOut } from "@/lib/auth"
 
 interface Service {
   id: string
@@ -105,6 +106,15 @@ export default function Profile() {
   const owesMe = favorRelationships.filter((rel) => rel.type === "owes_me")
   const iOwe = favorRelationships.filter((rel) => rel.type === "i_owe")
 
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      router.push("/")
+    } catch (error) {
+      console.error("Sign out failed:", error)
+    }
+  }
+
   return (
     <div
       className={`min-h-screen bg-black text-white pb-20 safe-area-inset transition-transform duration-300 ${isSliding ? "translate-x-full" : ""}`}
@@ -113,12 +123,14 @@ export default function Profile() {
       <div className="sticky top-0 bg-black/95 backdrop-blur-sm border-b border-gray-800 p-4 z-10 pt-safe">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold tracking-tight text-white">Profile</h1>
-          <Button variant="ghost" size="icon" className="text-white hover:bg-gray-800" onClick={handleMessagesClick}>
-            <div className="relative">
-              <div className="w-8 h-6 bg-gray-700 rounded-full flex items-center justify-center">
-                <Zap className="w-4 h-4 text-white" />
-              </div>
-            </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-white hover:bg-gray-800"
+            onClick={handleSignOut}
+            title="Sign Out"
+          >
+            <LogOut className="w-5 h-5 text-white" />
           </Button>
         </div>
       </div>
