@@ -4,11 +4,24 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 if (!supabaseUrl || !supabaseAnonKey) {
+  console.error("[v0] Missing Supabase environment variables:", {
+    url: !!supabaseUrl,
+    key: !!supabaseAnonKey,
+  })
   throw new Error("Missing Supabase environment variables")
 }
 
+export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true, // Stores session in localStorage
+    autoRefreshToken: true, // Automatically refreshes JWT tokens
+    detectSessionInUrl: true, // Handles auth redirects properly
+    flowType: "pkce", // More secure for web apps
+  },
+})
+
 export const createClient = () => {
-  return createSupabaseClient(supabaseUrl, supabaseAnonKey)
+  return supabase
 }
 
 export type Database = {
@@ -48,6 +61,7 @@ export type Database = {
           title: string
           description: string
           departure_location: string
+          from_location: string // Added missing from_location column
           destination: string
           departure_time: string
           available_seats: number
@@ -60,6 +74,7 @@ export type Database = {
           title: string
           description: string
           departure_location: string
+          from_location?: string // Added missing from_location column
           destination: string
           departure_time: string
           available_seats: number
@@ -72,6 +87,7 @@ export type Database = {
           title?: string
           description?: string
           departure_location?: string
+          from_location?: string // Added missing from_location column
           destination?: string
           departure_time?: string
           available_seats?: number
