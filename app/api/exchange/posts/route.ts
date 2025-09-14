@@ -93,10 +93,10 @@ export async function POST(request: NextRequest) {
     )
     const body = await request.json()
 
-    const { title, description, price, price_negotiability = "non-negotiable", category, duration_days, user_id } = body
+    const { title, description, price, price_negotiability = "non-negotiable", category, duration_days } = body
 
     // Validate required fields
-    if (!title || !description || price == null || !category || !duration_days || !user_id) {
+    if (!title || !description || price == null || !category || !duration_days) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
@@ -122,16 +122,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid price negotiability" }, { status: 400 })
     }
 
-    // Verify user is authenticated and matches user_id
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (!user || user.id !== user_id) {
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     // Insert post
-    const { data, error } = await supabase
+    const { data: postData, error: postError } = await supabase
       .from("exchange_posts")
       .insert({
         title,
@@ -140,7 +139,7 @@ export async function POST(request: NextRequest) {
         price_negotiability,
         category,
         duration_days,
-        user_id,
+        user_id: user.id, // Use authenticated user's ID instead of request body user_id
         status: "active",
         rating: null,
         review_count: 0,
@@ -148,12 +147,12 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
-    if (error) {
-      console.error("Error creating exchange post:", error)
+    if (postError) {
+      console.error("Error creating exchange post:", postError)
       return NextResponse.json({ error: "Failed to create exchange post" }, { status: 500 })
     }
 
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(postData, { status: 201 })
   } catch (error) {
     console.error("Unexpected error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
