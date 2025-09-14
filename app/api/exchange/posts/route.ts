@@ -80,6 +80,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = cookies()
+
+    console.log("[v0] DIAGNOSTIC: All cookies:", cookieStore.getAll())
+    console.log("[v0] DIAGNOSTIC: Supabase cookies:", {
+      access_token: cookieStore.get("sb-access-token")?.value ? "present" : "missing",
+      refresh_token: cookieStore.get("sb-refresh-token")?.value ? "present" : "missing",
+    })
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -92,6 +99,8 @@ export async function POST(request: NextRequest) {
       },
     )
     const body = await request.json()
+
+    console.log("[v0] DIAGNOSTIC: Request body:", body)
 
     const { title, description, price, price_negotiability = "non-negotiable", category, duration_days } = body
 
@@ -125,9 +134,18 @@ export async function POST(request: NextRequest) {
     const {
       data: { user },
     } = await supabase.auth.getUser()
+
+    console.log("[v0] DIAGNOSTIC: Auth result:", {
+      user: user ? { id: user.id, email: user.email } : null,
+      authenticated: !!user,
+    })
+
     if (!user) {
+      console.log("[v0] DIAGNOSTIC: No authenticated user found - returning 401")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    console.log("[v0] DIAGNOSTIC: About to insert with user_id:", user.id)
 
     // Insert post
     const { data: postData, error: postError } = await supabase
@@ -148,13 +166,20 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (postError) {
-      console.error("Error creating exchange post:", postError)
+      console.error("[v0] DIAGNOSTIC: Database insert error:", postError)
+      console.error("[v0] DIAGNOSTIC: Error details:", {
+        code: postError.code,
+        message: postError.message,
+        details: postError.details,
+        hint: postError.hint,
+      })
       return NextResponse.json({ error: "Failed to create exchange post" }, { status: 500 })
     }
 
+    console.log("[v0] DIAGNOSTIC: Post created successfully:", postData)
     return NextResponse.json(postData, { status: 201 })
   } catch (error) {
-    console.error("Unexpected error:", error)
+    console.error("[v0] DIAGNOSTIC: Unexpected error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
