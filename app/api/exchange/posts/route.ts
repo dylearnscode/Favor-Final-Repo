@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
 
-    // Build query to fetch active posts with user profile info
     let query = supabase
       .from("exchange_posts")
       .select(`
@@ -35,7 +34,7 @@ export async function GET(request: NextRequest) {
         created_at,
         expires_at,
         user_id,
-        user_profiles!exchange_posts_user_id_fkey (
+        user_profiles (
           username,
           full_name
         )

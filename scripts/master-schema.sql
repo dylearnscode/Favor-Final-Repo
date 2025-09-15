@@ -167,6 +167,11 @@ DROP POLICY IF EXISTS "Users can view all profiles" ON user_profiles;
 CREATE POLICY "Users can view all profiles" ON user_profiles FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Users can update own profile" ON user_profiles;
 CREATE POLICY "Users can update own profile" ON user_profiles FOR UPDATE USING (auth.uid() = id);
+-- Add missing INSERT policy for user profiles
+DROP POLICY IF EXISTS "Users can insert their profile" ON user_profiles;
+CREATE POLICY "Users can insert their profile" ON user_profiles
+FOR INSERT
+WITH CHECK (auth.uid() = id);
 
 -- Rideshare posts policies
 DROP POLICY IF EXISTS "Anyone can view rideshare posts" ON rideshare_posts;
@@ -244,8 +249,14 @@ CREATE TRIGGER update_conversation_last_message_trigger
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO user_profiles (id, email, username)
-  VALUES (NEW.id, NEW.email, COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)));
+  INSERT INTO user_profiles (id, email, username, full_name)
+  VALUES (
+    NEW.id, 
+    NEW.email, 
+    COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
+    NEW.raw_user_meta_data->>'full_name'
+  )
+  ON CONFLICT (id) DO NOTHING; -- Prevent duplicate inserts
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

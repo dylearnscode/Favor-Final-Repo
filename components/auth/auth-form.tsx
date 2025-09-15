@@ -31,10 +31,11 @@ export function AuthForm({ mode }: AuthFormProps) {
   const { session, loading: sessionLoading } = useSession()
 
   useEffect(() => {
-    if (session && !sessionLoading && mode === "signin") {
+    if (session && !sessionLoading) {
+      console.log("[v0] Session ready, redirecting to exchange")
       router.push("/exchange")
     }
-  }, [session, sessionLoading, mode, router])
+  }, [session, sessionLoading, router])
 
   const isValidEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -71,20 +72,23 @@ export function AuthForm({ mode }: AuthFormProps) {
 
     try {
       if (mode === "signup") {
+        console.log("[v0] Starting signup process")
         const result = await signUp({ email, password, username, fullName })
 
         toast({
           title: "Account created successfully",
           description: "Please check your email to verify your account.",
         })
-        router.push("/auth/signin")
+        console.log("[v0] Signup complete, waiting for session")
       } else {
+        console.log("[v0] Starting signin process")
         const result = await signIn({ email, password })
 
         toast({
           title: "Signed in successfully",
           description: "Welcome back!",
         })
+        console.log("[v0] Signin complete, waiting for session")
       }
     } catch (error) {
       console.error("Auth error:", error)
