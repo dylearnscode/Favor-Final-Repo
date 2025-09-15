@@ -11,6 +11,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
 import { signIn, signUp } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
+import { useSession } from "@/components/providers/session-provider"
+import { useEffect } from "react"
 import Link from "next/link"
 
 interface AuthFormProps {
@@ -26,8 +28,14 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [error, setError] = useState("")
   const router = useRouter()
   const { toast } = useToast()
+  const { session, loading: sessionLoading } = useSession()
 
-  // More permissive email validation
+  useEffect(() => {
+    if (session && !sessionLoading && mode === "signin") {
+      router.push("/exchange")
+    }
+  }, [session, sessionLoading, mode, router])
+
   const isValidEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email)
@@ -43,7 +51,6 @@ export function AuthForm({ mode }: AuthFormProps) {
     setLoading(true)
     setError("")
 
-    // Basic validation
     if (!isValidEmail(email)) {
       setError("Please enter a valid email address")
       setLoading(false)
@@ -64,7 +71,6 @@ export function AuthForm({ mode }: AuthFormProps) {
 
     try {
       if (mode === "signup") {
-        // Call signUp with all required data
         const result = await signUp({ email, password, username, fullName })
 
         toast({
@@ -76,14 +82,9 @@ export function AuthForm({ mode }: AuthFormProps) {
         const result = await signIn({ email, password })
 
         toast({
-          title: "Signed in successfully", 
+          title: "Signed in successfully",
           description: "Welcome back!",
         })
-
-        // Wait a moment for the session to be established, then redirect
-        setTimeout(() => {
-          router.push("/exchange")
-        }, 500)
       }
     } catch (error) {
       console.error("Auth error:", error)
