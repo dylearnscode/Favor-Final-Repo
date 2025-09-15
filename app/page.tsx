@@ -126,21 +126,50 @@ export default function Academic() {
   const [hasAuth, setHasAuth] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showLoadingScreen, setShowLoadingScreen] = useState(true)
+  const [dataLoaded, setDataLoaded] = useState(false)
   const [selectedDepartment, setSelectedDepartment] = useState("All Departments")
   const [selectedCourse, setSelectedCourse] = useState("All Courses")
   const [searchQuery, setSearchQuery] = useState("")
   const [academicPosts, setAcademicPosts] = useState<AcademicPost[]>([])
+
+  const loadAcademicPosts = useCallback(async () => {
+    try {
+      setLoading(true)
+      console.log("[v0] Starting to load academic posts")
+
+      const { data, error } = await supabase
+        .from("academic_posts")
+        .select("id, department, course, title, resource, pdf_url, uploaded_by, upload_date, popularity")
+        .order("popularity", { ascending: false })
+        .limit(100)
+
+      if (error) {
+        console.log("[v0] Database not connected, using sample data")
+        setAcademicPosts(SAMPLE_ACADEMIC_POSTS)
+      } else {
+        console.log("[v0] Loaded academic posts from database:", data?.length || 0)
+        setAcademicPosts(data || [])
+      }
+    } catch (error) {
+      console.error("[v0] Error loading academic posts:", error)
+      setAcademicPosts(SAMPLE_ACADEMIC_POSTS)
+    } finally {
+      setLoading(false)
+      setDataLoaded(true)
+      console.log("[v0] Academic posts loading complete")
+    }
+  }, [])
 
   useEffect(() => {
     const bypassAuth = localStorage.getItem("favor_bypass_auth") === "true"
 
     if (bypassAuth) {
       setHasAuth(true)
-      setLoading(false)
+      loadAcademicPosts()
     } else {
       router.push("/auth/signin")
     }
-  }, [router])
+  }, [router, loadAcademicPosts])
 
   const filteredPosts = useMemo(() => {
     let filtered = academicPosts
@@ -179,36 +208,6 @@ export default function Academic() {
 
   const postsToShow = isSearching ? filteredPosts : academicPosts
 
-  const loadAcademicPosts = useCallback(async () => {
-    try {
-      setLoading(true)
-
-      const { data, error } = await supabase
-        .from("academic_posts")
-        .select("id, department, course, title, resource, pdf_url, uploaded_by, upload_date, popularity")
-        .order("popularity", { ascending: false })
-        .limit(100)
-
-      if (error) {
-        console.log("Database not connected, using sample data")
-        setAcademicPosts(SAMPLE_ACADEMIC_POSTS)
-      } else {
-        setAcademicPosts(data || [])
-      }
-    } catch (error) {
-      console.error("Error loading academic posts:", error)
-      setAcademicPosts(SAMPLE_ACADEMIC_POSTS)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (hasAuth) {
-      loadAcademicPosts()
-    }
-  }, [loadAcademicPosts, hasAuth])
-
   const handleDepartmentChange = useCallback((department: string) => {
     setSelectedDepartment(department)
     setSelectedCourse("All Courses")
@@ -227,14 +226,22 @@ export default function Academic() {
   }, [])
 
   const handleLoadingComplete = useCallback(() => {
-    setShowLoadingScreen(false)
-  }, [])
+    console.log("[v0] Loading screen animation complete, dataLoaded:", dataLoaded)
+    if (dataLoaded) {
+      setShowLoadingScreen(false)
+    } else {
+      console.log("[v0] Data not ready, extending loading screen")
+      setTimeout(() => {
+        setShowLoadingScreen(false)
+      }, 1000)
+    }
+  }, [dataLoaded])
 
   if (showLoadingScreen) {
     return <HiveLoadingScreen onComplete={handleLoadingComplete} />
   }
 
-  if (loading) {
+  if (loading && !dataLoaded) {
     return (
       <div className="min-h-screen bg-black text-white pb-20">
         <div className="flex items-center justify-center h-screen">
