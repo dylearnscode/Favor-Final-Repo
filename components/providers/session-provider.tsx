@@ -13,7 +13,7 @@ interface SessionContextType {
   loading: boolean
 }
 
-const SessionContext = createContext<SessionContextType>({
+export const SessionContext = createContext<SessionContextType>({
   session: null,
   user: null,
   profile: null,

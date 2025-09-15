@@ -12,12 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
+import { useSession } from "@/components/providers/session-provider"
 import BottomNav from "@/components/bottom-nav"
 
 export default function PostService() {
   const router = useRouter()
   const { toast } = useToast()
   const { user, loading: authLoading } = useAuth()
+  const { session } = useSession()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
@@ -31,7 +33,7 @@ export default function PostService() {
 
   // Redirect to signin if not authenticated
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && (!user || !session)) {
       toast({
         title: "Authentication Required",
         description: "Please sign in to post a service.",
@@ -39,7 +41,7 @@ export default function PostService() {
       })
       router.push("/auth/signin")
     }
-  }, [user, authLoading, router, toast])
+  }, [user, session, authLoading, router, toast])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({
@@ -50,8 +52,8 @@ export default function PostService() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!user) {
+
+    if (!user || !session) {
       toast({
         title: "Authentication Required",
         description: "Please sign in to post a service.",
@@ -80,7 +82,9 @@ export default function PostService() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
         },
+        credentials: "include",
         body: JSON.stringify(postData),
       })
 
@@ -127,7 +131,7 @@ export default function PostService() {
   }
 
   // Don't render form if not authenticated (will redirect)
-  if (!user) {
+  if (!user || !session) {
     return null
   }
 

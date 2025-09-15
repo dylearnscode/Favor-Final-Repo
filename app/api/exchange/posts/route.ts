@@ -88,9 +88,25 @@ export async function POST(request: NextRequest) {
           get(name: string) {
             return cookieStore.get(name)?.value
           },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options: any) {
+            cookieStore.set({ name, value: "", ...options })
+          },
         },
       },
     )
+
+    const authHeader = request.headers.get("authorization")
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.substring(7)
+      // Set the session token for this request
+      await supabase.auth.setSession({
+        access_token: token,
+        refresh_token: "", // Not needed for this operation
+      })
+    }
 
     const { data: dbTest, error: dbError } = await supabase.from("exchange_posts").select().limit(1)
     console.log("DB test:", { data: dbTest, error: dbError })
@@ -131,8 +147,11 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      console.error("Authentication failed - no user found in session")
+      return NextResponse.json({ error: "Unauthorized - Please sign in again" }, { status: 401 })
     }
+
+    console.log("Authenticated user:", user.id)
 
     // Insert post
     const { data: postData, error: postError } = await supabase
@@ -144,7 +163,7 @@ export async function POST(request: NextRequest) {
         price_negotiability,
         category,
         duration_days,
-        user_id: user.id, // Use authenticated user's ID instead of request body user_id
+        user_id: user.id,
         status: "active",
         rating: null,
         review_count: 0,
