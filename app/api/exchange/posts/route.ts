@@ -97,19 +97,6 @@ export async function POST(request: NextRequest) {
       },
     )
 
-    const authHeader = request.headers.get("authorization")
-    if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.substring(7)
-      // Set the session token for this request
-      await supabase.auth.setSession({
-        access_token: token,
-        refresh_token: "", // Not needed for this operation
-      })
-    }
-
-    const { data: dbTest, error: dbError } = await supabase.from("exchange_posts").select().limit(1)
-    console.log("DB test:", { data: dbTest, error: dbError })
-
     const body = await request.json()
 
     const { title, description, price, price_negotiability = "non-negotiable", category, duration_days } = body

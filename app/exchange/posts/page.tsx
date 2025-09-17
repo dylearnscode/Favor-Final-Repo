@@ -82,7 +82,6 @@ export default function PostService() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
         },
         credentials: "include",
         body: JSON.stringify(postData),
