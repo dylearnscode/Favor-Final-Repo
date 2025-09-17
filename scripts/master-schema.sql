@@ -12,6 +12,10 @@ GRANT ALL ON SCHEMA public TO public;
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Added schema cache refresh commands after reset
+-- Force refresh Supabase schema cache by analyzing tables after reset
+ANALYZE;
+
 -- Create custom types first
 CREATE TYPE exchange_category AS ENUM ('Concert Tickets', 'Dorm Items', 'Preprofessional Help', 'Food Truck Line Service');
 CREATE TYPE price_negotiability AS ENUM ('negotiable', 'non-negotiable');
@@ -113,6 +117,13 @@ ALTER TABLE exchange_posts
 ADD CONSTRAINT exchange_posts_user_id_fkey 
 FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
 
+-- Added schema cache refresh after foreign key creation
+-- Refresh schema cache by analyzing tables after foreign key creation
+ANALYZE exchange_posts;
+ANALYZE user_profiles;
+ANALYZE rideshare_posts;
+ANALYZE academic_posts;
+
 -- Function to automatically set expires_at based on duration_days
 CREATE OR REPLACE FUNCTION set_exchange_post_expiry()
 RETURNS TRIGGER AS $$
@@ -136,6 +147,28 @@ BEGIN
   WHERE expires_at < NOW() AND status = 'active';
 END;
 $$ LANGUAGE plpgsql;
+
+-- Updated handle_new_user function with full_name and conflict handling
+-- Add trigger to sync auth.users with user_profiles automatically
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO user_profiles (id, email, username, full_name)
+  VALUES (
+    NEW.id, 
+    NEW.email, 
+    COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
+    NEW.raw_user_meta_data->>'full_name'
+  )
+  ON CONFLICT (id) DO NOTHING; -- Prevent duplicate inserts
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION handle_new_user();
 
 -- Create indexes for better performance
 CREATE INDEX idx_rideshare_posts_user_id ON rideshare_posts(user_id);
@@ -167,11 +200,19 @@ DROP POLICY IF EXISTS "Users can view all profiles" ON user_profiles;
 CREATE POLICY "Users can view all profiles" ON user_profiles FOR SELECT USING (true);
 DROP POLICY IF EXISTS "Users can update own profile" ON user_profiles;
 CREATE POLICY "Users can update own profile" ON user_profiles FOR UPDATE USING (auth.uid() = id);
+
+-- Added comprehensive INSERT policies for user profiles
 -- Add missing INSERT policy for user profiles
 DROP POLICY IF EXISTS "Users can insert their profile" ON user_profiles;
 CREATE POLICY "Users can insert their profile" ON user_profiles
 FOR INSERT
 WITH CHECK (auth.uid() = id);
+
+-- Also allow anonymous users to insert profiles during signup (needed for the signup flow)
+DROP POLICY IF EXISTS "Anonymous users can insert profiles during signup" ON user_profiles;
+CREATE POLICY "Anonymous users can insert profiles during signup" ON user_profiles
+FOR INSERT
+WITH CHECK (true); -- This allows the manual profile creation during signup
 
 -- Rideshare posts policies
 DROP POLICY IF EXISTS "Anyone can view rideshare posts" ON rideshare_posts;
@@ -245,23 +286,21 @@ CREATE TRIGGER update_conversation_last_message_trigger
   FOR EACH ROW
   EXECUTE FUNCTION update_conversation_last_message();
 
--- Add trigger to sync auth.users with user_profiles automatically
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO user_profiles (id, email, username, full_name)
-  VALUES (
-    NEW.id, 
-    NEW.email, 
-    COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
-    NEW.raw_user_meta_data->>'full_name'
-  )
-  ON CONFLICT (id) DO NOTHING; -- Prevent duplicate inserts
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER on_auth_user_created
-AFTER INSERT ON auth.users
-FOR EACH ROW
-EXECUTE FUNCTION handle_new_user();
+-- Added final verification query for foreign key relationships
+-- Verify the relationship exists
+SELECT 
+    tc.constraint_name, 
+    tc.table_name, 
+    kcu.column_name, 
+    ccu.table_name AS foreign_table_name,
+    ccu.column_name AS foreign_column_name 
+FROM 
+    information_schema.table_constraints AS tc 
+    JOIN information_schema.key_column_usage AS kcu
+      ON tc.constraint_name = kcu.constraint_name
+      AND tc.table_schema = kcu.table_schema
+    JOIN information_schema.constraint_column_usage AS ccu
+      ON ccu.constraint_name = tc.constraint_name
+      AND ccu.table_schema = tc.table_schema
+WHERE tc.constraint_type = 'FOREIGN KEY' 
+AND tc.table_name='exchange_posts';
