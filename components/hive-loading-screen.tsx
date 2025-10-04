@@ -133,7 +133,9 @@ export default function HiveLoadingScreen({ onComplete }: { onComplete: () => vo
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1.5 }}
             >
-              <h1 className="text-4xl font-bold text-amber-400 font-[family-name:var(--font-work-sans)]">Hive</h1>
+              <h1 className="text-4xl font-bold text-amber-400 font-[family-name:var(--font-work-sans)] text-center">
+                Hive
+              </h1>
             </motion.div>
           </div>
         </motion.div>
