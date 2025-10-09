@@ -10,7 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, MapPin, Calendar, Clock, Users, Car } from "lucide-react"
-import { createClient } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
@@ -26,8 +25,6 @@ export default function PostRide() {
     maxParticipants: "4",
     organizer: "",
   })
-
-  const supabase = createClient()
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -51,29 +48,8 @@ export default function PostRide() {
     setLoading(true)
 
     try {
-      const datetime = new Date(`${formData.date}T${formData.time}`).toISOString()
-
-      const { error } = await supabase.from("rideshare_posts").insert([
-        {
-          title: formData.title,
-          destination: formData.destination,
-          reason: formData.reason || null,
-          date: formData.date,
-          time: formData.time,
-          datetime: datetime,
-          max_participants: Number.parseInt(formData.maxParticipants),
-          participants: 1, // Organizer is automatically included
-          organizer: formData.organizer,
-          match_strength: Math.floor(Math.random() * 20) + 80, // Random match strength 80-99%
-          distance: `${(Math.random() * 2).toFixed(1)} miles away`, // Random distance for demo
-        },
-      ])
-
-      if (error) {
-        console.error("Error creating ride:", error)
-        alert("Error creating ride. Please check your database connection.")
-        return
-      }
+      // Mock successful creation
+      await new Promise((resolve) => setTimeout(resolve, 500))
 
       alert("Ride created successfully!")
       router.push("/rideshare")

@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
-import { signIn, signUp } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
 import { useSession } from "@/components/providers/session-provider"
 import { useEffect } from "react"
@@ -71,25 +70,24 @@ export function AuthForm({ mode }: AuthFormProps) {
     }
 
     try {
-      if (mode === "signup") {
-        console.log("[v0] Starting signup process")
-        const result = await signUp({ email, password, username, fullName })
+      // Mock successful authentication
+      await new Promise((resolve) => setTimeout(resolve, 500))
 
-        toast({
-          title: "Account created successfully",
-          description: "Please check your email to verify your account.",
-        })
-        console.log("[v0] Signup complete, waiting for session")
-      } else {
-        console.log("[v0] Starting signin process")
-        const result = await signIn({ email, password })
-
-        toast({
-          title: "Signed in successfully",
-          description: "Welcome back!",
-        })
-        console.log("[v0] Signin complete, waiting for session")
+      const mockUser = {
+        id: "mock-user-id",
+        email,
+        username: username || email.split("@")[0],
+        fullName: fullName || "Demo User",
       }
+
+      localStorage.setItem("favor_mock_user", JSON.stringify(mockUser))
+
+      toast({
+        title: mode === "signup" ? "Account created successfully" : "Signed in successfully",
+        description: mode === "signup" ? "Welcome to Favor!" : "Welcome back!",
+      })
+
+      router.push("/exchange")
     } catch (error) {
       console.error("Auth error:", error)
       setError(error instanceof Error ? error.message : "An error occurred")

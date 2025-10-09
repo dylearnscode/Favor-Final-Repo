@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, BookOpen, Upload } from "lucide-react"
-import { createClient } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
@@ -51,8 +50,6 @@ export default function PostAcademic() {
     description: "",
   })
 
-  const supabase = createClient()
-
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
@@ -67,34 +64,12 @@ export default function PostAcademic() {
 
     setLoading(true)
 
-    try {
-      const { error } = await supabase.from("academic_posts").insert([
-        {
-          department: formData.department,
-          course: formData.course,
-          title: formData.title,
-          resource: formData.resource,
-          pdf_url: formData.pdfUrl,
-          uploaded_by: "Current User", // TODO: Get from auth
-          upload_date: new Date().toISOString(),
-          popularity: Math.floor(Math.random() * 50) + 50, // Random popularity 50-99
-        },
-      ])
-
-      if (error) {
-        console.error("Error creating academic post:", error)
-        alert("Error creating post. Please check your database connection.")
-        return
-      }
-
-      alert("Academic material posted successfully!")
+    // Simulate API call
+    setTimeout(() => {
+      alert("Academic material posted successfully! (Demo mode)")
       router.push("/")
-    } catch (error) {
-      console.error("Error creating academic post:", error)
-      alert("Error creating post. Please try again.")
-    } finally {
       setLoading(false)
-    }
+    }, 1000)
   }
 
   const availableCourses = formData.department ? COURSES_BY_DEPARTMENT[formData.department] || [] : []

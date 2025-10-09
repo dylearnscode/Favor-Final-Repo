@@ -6,10 +6,10 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { BookOpen, Search, Plus } from "lucide-react"
 import { BottomNav } from "@/components/bottom-nav"
-import { createClient } from "@/lib/supabase"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import HiveLoadingScreen from "@/components/hive-loading-screen"
+import { MOCK_ACADEMIC_POSTS } from "@/lib/mock-data"
 
 interface AcademicPost {
   id: string
@@ -18,80 +18,12 @@ interface AcademicPost {
   title: string
   resource: string
   pdf_url: string
-  uploaded_by: string
+  uploader: string
   upload_date: string
   popularity: number
   file_type?: string
   file_size?: number
 }
-
-const SAMPLE_ACADEMIC_POSTS: AcademicPost[] = [
-  {
-    id: "1",
-    department: "Computer Science",
-    course: "CS 31",
-    title: "Introduction to Computer Science I",
-    resource: "Midterm Practice Questions",
-    pdf_url: "https://web.cs.ucla.edu/classes/fall23/cs31/Exams/midterm_practice.pdf",
-    uploaded_by: "Sarah Chen",
-    upload_date: "2 days ago",
-    popularity: 95,
-    file_type: "application/pdf",
-    file_size: 1024000,
-  },
-  {
-    id: "2",
-    department: "Management",
-    course: "Management 1A",
-    title: "Principles of Management",
-    resource: "Buffet's Annual Letter Worksheet",
-    pdf_url: "https://www.polisci.ucla.edu/sites/default/files/study_guide_final.pdf",
-    uploaded_by: "Marcus Johnson",
-    upload_date: "1 week ago",
-    popularity: 87,
-    file_type: "application/pdf",
-    file_size: 2048000,
-  },
-  {
-    id: "3",
-    department: "Computer Science",
-    course: "CS 111",
-    title: "Operating Systems Principles",
-    resource: "Project 2 Solution Guide",
-    pdf_url: "https://web.cs.ucla.edu/classes/fall23/cs111/projects/project2_solution.pdf",
-    uploaded_by: "Alex Kim",
-    upload_date: "3 days ago",
-    popularity: 92,
-    file_type: "application/pdf",
-    file_size: 1536000,
-  },
-  {
-    id: "4",
-    department: "Mathematics",
-    course: "Math 31A",
-    title: "Differential and Integral Calculus",
-    resource: "Chapter 5 Practice Problems",
-    pdf_url: "https://www.math.ucla.edu/~tao/resource/general/math31a/practice_ch5.pdf",
-    uploaded_by: "Emma Rodriguez",
-    upload_date: "5 days ago",
-    popularity: 78,
-    file_type: "application/pdf",
-    file_size: 896000,
-  },
-  {
-    id: "5",
-    department: "Economics",
-    course: "Econ 1",
-    title: "Principles of Economics",
-    resource: "Final Exam Study Guide",
-    pdf_url: "https://example.com/econ1-final.pdf",
-    uploaded_by: "David Park",
-    upload_date: "4 days ago",
-    popularity: 83,
-    file_type: "application/pdf",
-    file_size: 1200000,
-  },
-]
 
 const DEPARTMENTS = [
   "Computer Science",
@@ -119,57 +51,21 @@ const COURSES_BY_DEPARTMENT: Record<string, readonly string[]> = {
   History: ["History 1A", "History 1B", "History 1C", "History 100", "History 120"],
 } as const
 
-const supabase = createClient()
-
 export default function Academic() {
   const router = useRouter()
-  const [hasAuth, setHasAuth] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [hasAuth, setHasAuth] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [showLoadingScreen, setShowLoadingScreen] = useState(true)
-  const [dataLoaded, setDataLoaded] = useState(false)
+  const [dataLoaded, setDataLoaded] = useState(true)
   const [selectedDepartment, setSelectedDepartment] = useState("All Departments")
   const [selectedCourse, setSelectedCourse] = useState("All Courses")
   const [searchQuery, setSearchQuery] = useState("")
-  const [academicPosts, setAcademicPosts] = useState<AcademicPost[]>([])
-
-  const loadAcademicPosts = useCallback(async () => {
-    try {
-      setLoading(true)
-      console.log("[v0] Starting to load academic posts")
-
-      const { data, error } = await supabase
-        .from("academic_posts")
-        .select("id, department, course, title, resource, pdf_url, uploaded_by, upload_date, popularity")
-        .order("popularity", { ascending: false })
-        .limit(100)
-
-      if (error) {
-        console.log("[v0] Database not connected, using sample data")
-        setAcademicPosts(SAMPLE_ACADEMIC_POSTS)
-      } else {
-        console.log("[v0] Loaded academic posts from database:", data?.length || 0)
-        setAcademicPosts(data || [])
-      }
-    } catch (error) {
-      console.error("[v0] Error loading academic posts:", error)
-      setAcademicPosts(SAMPLE_ACADEMIC_POSTS)
-    } finally {
-      setLoading(false)
-      setDataLoaded(true)
-      console.log("[v0] Academic posts loading complete")
-    }
-  }, [])
+  const [academicPosts, setAcademicPosts] = useState<AcademicPost[]>(MOCK_ACADEMIC_POSTS)
 
   useEffect(() => {
-    const bypassAuth = localStorage.getItem("favor_bypass_auth") === "true"
-
-    if (bypassAuth) {
-      setHasAuth(true)
-      loadAcademicPosts()
-    } else {
-      router.push("/auth/signin")
-    }
-  }, [router, loadAcademicPosts])
+    setHasAuth(true)
+    setDataLoaded(true)
+  }, [router])
 
   const filteredPosts = useMemo(() => {
     let filtered = academicPosts
@@ -226,36 +122,11 @@ export default function Academic() {
   }, [])
 
   const handleLoadingComplete = useCallback(() => {
-    console.log("[v0] Loading screen animation complete, dataLoaded:", dataLoaded)
-    if (dataLoaded) {
-      setShowLoadingScreen(false)
-    } else {
-      console.log("[v0] Data not ready, extending loading screen")
-      setTimeout(() => {
-        setShowLoadingScreen(false)
-      }, 1000)
-    }
-  }, [dataLoaded])
+    setShowLoadingScreen(false)
+  }, [])
 
   if (showLoadingScreen) {
     return <HiveLoadingScreen onComplete={handleLoadingComplete} />
-  }
-
-  if (loading && !dataLoaded) {
-    return (
-      <div className="min-h-screen bg-black text-white pb-20">
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto mb-4"></div>
-            <p className="text-gray-400">Loading academic materials...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!hasAuth) {
-    return null
   }
 
   return (

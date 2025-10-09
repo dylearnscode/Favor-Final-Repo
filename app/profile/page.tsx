@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label"
 import { Camera, Edit, Plus, MapPin, Calendar, LogOut } from "lucide-react"
 import { BottomNav } from "@/components/bottom-nav"
 import { useRouter } from "next/navigation"
-import { signOut } from "@/lib/auth"
 
 interface Service {
   id: string
@@ -108,7 +107,7 @@ export default function Profile() {
 
   const handleSignOut = async () => {
     try {
-      await signOut()
+      localStorage.removeItem("favor_mock_user")
       router.push("/")
     } catch (error) {
       console.error("Sign out failed:", error)

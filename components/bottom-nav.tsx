@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button"
 import { BookOpen, Car, MessageCircle, ShoppingBag, User } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
-import { useEffect, useState } from "react"
-import { getUnreadMessageCount } from "@/lib/messaging-utils"
+import { useState } from "react"
 
 interface BottomNavProps {
   activeTab?: "academic" | "rideshare" | "exchange" | "messages" | "profile"
@@ -16,7 +15,7 @@ export function BottomNav({ activeTab }: BottomNavProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { user, profile } = useAuth()
-  const [unreadCount, setUnreadCount] = useState(0)
+  const [unreadCount] = useState(3)
 
   // Determine active tab from pathname if not provided
   const currentTab =
@@ -29,13 +28,6 @@ export function BottomNav({ activeTab }: BottomNavProps) {
       if (pathname.startsWith("/profile")) return "profile"
       return "academic"
     })()
-
-  // Load unread message count
-  useEffect(() => {
-    if (profile?.id) {
-      getUnreadMessageCount(profile.id).then(setUnreadCount)
-    }
-  }, [profile?.id])
 
   const navItems = [
     {

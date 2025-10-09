@@ -1,32 +1,26 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Car, Search, MapPin, Clock, Users, Star, ChevronUp, ChevronDown, Calendar, Plus } from "lucide-react"
 import { BottomNav } from "@/components/bottom-nav"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { createClient } from "@/lib/supabase"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { MOCK_RIDESHARE_POSTS } from "@/lib/mock-data"
 import { useRouter } from "next/navigation"
 
 interface RidePost {
   id: string
   title: string
   from_location: string
-  to_location: string
+  destination: string
   departure_time: string
   available_seats: number
-  price_per_person: string
-  user_name: string
-  user_avatar?: string
-  user_rating: number
+  price_per_person: number
+  poster: string
   created_at: string
-  coordinates?: {
-    from: { lat: number; lng: number }
-    to: { lat: number; lng: number }
-  }
 }
 
 interface SearchCriteria {
@@ -54,52 +48,34 @@ const SAMPLE_RIDES: RidePost[] = [
     id: "1",
     title: "UCLA to LAX Airport",
     from_location: "UCLA Campus",
-    to_location: "LAX Airport",
+    destination: "LAX Airport",
     departure_time: "2024-01-20T14:30:00",
     available_seats: 3,
-    price_per_person: "$15",
-    user_name: "Sarah K.",
-    user_avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face",
-    user_rating: 4.9,
+    price_per_person: 15,
+    poster: "Sarah K.",
     created_at: "2024-01-15",
-    coordinates: {
-      from: { lat: 34.0689, lng: -118.4452 },
-      to: { lat: 33.9425, lng: -118.4081 },
-    },
   },
   {
     id: "2",
     title: "SZA Concert Ride",
     from_location: "UCLA Campus",
-    to_location: "SZA Concert - Crypto.com Arena",
+    destination: "SZA Concert - Crypto.com Arena",
     departure_time: "2024-01-25T19:00:00",
     available_seats: 2,
-    price_per_person: "$20",
-    user_name: "Mike R.",
-    user_avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face",
-    user_rating: 4.7,
+    price_per_person: 20,
+    poster: "Mike R.",
     created_at: "2024-01-14",
-    coordinates: {
-      from: { lat: 34.0689, lng: -118.4452 },
-      to: { lat: 34.043, lng: -118.2673 },
-    },
   },
   {
     id: "3",
     title: "Weekend Beach Trip",
     from_location: "UCLA Campus",
-    to_location: "Santa Monica Beach",
+    destination: "Santa Monica Beach",
     departure_time: "2024-01-21T10:00:00",
     available_seats: 4,
-    price_per_person: "$8",
-    user_name: "Alex M.",
-    user_avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face",
-    user_rating: 5.0,
+    price_per_person: 8,
+    poster: "Alex M.",
     created_at: "2024-01-13",
-    coordinates: {
-      from: { lat: 34.0689, lng: -118.4452 },
-      to: { lat: 34.0195, lng: -118.4912 },
-    },
   },
 ]
 
@@ -126,7 +102,7 @@ const calculateSimilarity = (str1: string, str2: string): number => {
 
 export default function Rideshare() {
   const router = useRouter()
-  const [rides, setRides] = useState<RidePost[]>(SAMPLE_RIDES)
+  const [rides, setRides] = useState<RidePost[]>(MOCK_RIDESHARE_POSTS)
   const [searchCriteria, setSearchCriteria] = useState<SearchCriteria>({
     destination: "",
     date: "",
@@ -135,78 +111,7 @@ export default function Rideshare() {
   const [showSearch, setShowSearch] = useState(false)
   const [destinationSuggestions, setDestinationSuggestions] = useState<string[]>([])
   const [showDestinationSuggestions, setShowDestinationSuggestions] = useState(false)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchRides = async () => {
-      try {
-        setLoading(true)
-        const supabase = createClient()
-
-        // Add timeout to prevent infinite loading
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Database timeout")), 5000))
-
-        const queryPromise = supabase
-          .from("rideshare_posts")
-          .select(`
-            id,
-            title,
-            from_location,
-            to_location,
-            departure_time,
-            available_seats,
-            price_per_person,
-            created_at,
-            user_profiles!rideshare_posts_user_id_fkey (
-              username,
-              avatar_url
-            )
-          `)
-          .order("created_at", { ascending: false })
-          .limit(20) // Add limit for performance
-
-        try {
-          const { data, error } = (await Promise.race([queryPromise, timeoutPromise])) as any
-
-          if (error) {
-            console.error("Error fetching rides:", error)
-            setRides(SAMPLE_RIDES)
-          } else if (data && data.length > 0) {
-            // Transform database data to match our interface
-            const transformedRides = data.map((ride: any) => ({
-              id: ride.id,
-              title: ride.title || "Untitled Ride",
-              from_location: ride.from_location || "Unknown",
-              to_location: ride.to_location || ride.destination || "Unknown",
-              departure_time: ride.departure_time || ride.datetime || new Date().toISOString(),
-              available_seats: ride.available_seats || ride.max_participants || 1,
-              price_per_person: ride.price_per_person || "$0",
-              user_name: ride.user_profiles?.username || "Unknown User",
-              user_avatar: ride.user_profiles?.avatar_url || "",
-              user_rating: 4.5, // Default rating
-              created_at: ride.created_at,
-              coordinates: ride.coordinates,
-            }))
-            setRides(transformedRides)
-          } else {
-            // No data in database, use sample data
-            setRides(SAMPLE_RIDES)
-          }
-        } catch (timeoutError) {
-          console.log("Database query timed out, using sample data")
-          setRides(SAMPLE_RIDES)
-        }
-      } catch (error) {
-        console.error("Error:", error)
-        // Fallback to sample data on any error
-        setRides(SAMPLE_RIDES)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchRides()
-  }, [])
+  const [loading, setLoading] = useState(false)
 
   // Handle destination search with suggestions
   const handleDestinationChange = useCallback((value: string) => {
@@ -267,12 +172,12 @@ export default function Rideshare() {
           d.name.toLowerCase().includes(searchCriteria.destination.toLowerCase()),
         )
 
-        if (searchDest && ride.coordinates?.to) {
+        if (searchDest) {
           const distance = calculateDistance(
             searchDest.coords.lat,
             searchDest.coords.lng,
-            ride.coordinates.to.lat,
-            ride.coordinates.to.lng,
+            0, // Placeholder for destination coordinates
+            0, // Placeholder for destination coordinates
           )
 
           if (distance < 500)
@@ -335,20 +240,6 @@ export default function Rideshare() {
     const ampm = hour >= 12 ? "PM" : "AM"
     const displayHour = hour % 12 || 12
     return `${displayHour}:${minutes} ${ampm}`
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black text-white pb-20 safe-area-inset">
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-center">
-            <Car className="w-16 h-16 text-gray-600 mx-auto mb-4 animate-pulse" />
-            <p className="text-gray-400">Loading rides...</p>
-          </div>
-        </div>
-        <BottomNav activeTab="rideshare" />
-      </div>
-    )
   }
 
   return (
@@ -490,23 +381,16 @@ export default function Rideshare() {
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3 mb-3">
                     <Avatar className="w-10 h-10">
-                      <AvatarImage
-                        src={ride.user_avatar || "/placeholder.svg"}
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement
-                          target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(ride.user_name || "User")}&background=374151&color=ffffff&size=40`
-                        }}
-                      />
                       <AvatarFallback className="bg-gray-700 text-white text-sm font-bold">
-                        {ride.user_name ? ride.user_name.charAt(0) : "U"}
+                        {ride.poster ? ride.poster.charAt(0) : "U"}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-white text-sm">{ride.user_name || "Unknown User"}</span>
+                        <span className="font-medium text-white text-sm">{ride.poster || "Unknown User"}</span>
                         <div className="flex items-center gap-1">
                           <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                          <span className="text-xs text-gray-400">{ride.user_rating || 0}</span>
+                          <span className="text-xs text-gray-400">4.8</span>
                         </div>
                         {matchPercentage > 0 && (
                           <Badge className="bg-green-900/50 text-green-300 text-xs font-medium">
@@ -516,7 +400,7 @@ export default function Rideshare() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-lg text-white">{ride.price_per_person || "$0"}</div>
+                      <div className="font-bold text-lg text-white">${ride.price_per_person}</div>
                       <div className="text-xs text-gray-400">per person</div>
                     </div>
                   </div>
@@ -527,7 +411,7 @@ export default function Rideshare() {
                     <div className="flex items-center gap-2 text-sm">
                       <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
                       <span className="text-gray-300">
-                        {ride.from_location || "Unknown"} → {ride.to_location || "Unknown"}
+                        {ride.from_location || "Unknown"} → {ride.destination || "Unknown"}
                       </span>
                     </div>
                     <div className="flex items-center gap-4 text-sm text-gray-400">

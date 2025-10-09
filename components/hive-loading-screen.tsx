@@ -29,7 +29,7 @@ export default function HiveLoadingScreen({ onComplete }: { onComplete: () => vo
           exit={{ opacity: 0 }}
           className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-amber-950 flex items-center justify-center z-50"
         >
-          <div className="relative">
+          <div className="relative flex flex-col items-center">
             {/* Hive SVG */}
             <motion.svg
               width="120"
@@ -58,8 +58,8 @@ export default function HiveLoadingScreen({ onComplete }: { onComplete: () => vo
               className="absolute"
               initial={{ x: 300, y: 20 }}
               animate={{
-                x: stage === "flying" ? 100 : stage === "entering" ? 85 : 95,
-                y: stage === "flying" ? 20 : stage === "entering" ? 45 : 40,
+                x: stage === "flying" ? 100 : stage === "entering" ? 85 : 80,
+                y: stage === "flying" ? 20 : stage === "entering" ? 45 : 55,
                 scale: stage === "entering" ? 0.6 : stage === "peeking" ? 0.8 : 1,
               }}
               transition={{
@@ -128,7 +128,7 @@ export default function HiveLoadingScreen({ onComplete }: { onComplete: () => vo
 
             {/* Hive text */}
             <motion.div
-              className="absolute top-28 left-1/2 transform -translate-x-1/2"
+              className="mt-8"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1.5 }}

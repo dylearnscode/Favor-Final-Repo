@@ -2,7 +2,6 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase"
 
 interface AcademicPost {
   id: string
@@ -112,9 +111,6 @@ const COURSES_BY_DEPARTMENT: Record<string, readonly string[]> = {
   English: ["English 10A", "English 10B", "English 10C", "English 100", "English 120"],
   History: ["History 1A", "History 1B", "History 1C", "History 100", "History 120"],
 } as const
-
-// Create supabase client outside component to prevent recreation
-const supabase = createClient()
 
 export default function AcademicPage() {
   const router = useRouter()
