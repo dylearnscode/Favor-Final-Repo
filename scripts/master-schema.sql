@@ -1,500 +1,306 @@
--- Enable necessary extensions
+-- DESTRUCTIVE RESET - WARNING: This will delete the ENTIRE schema and ALL data
+-- Option 1: Drop and recreate the entire schema (most powerful reset)
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+GRANT ALL ON SCHEMA public TO postgres;
+GRANT ALL ON SCHEMA public TO public;
+
+-- Option 2: Alternative - Drop specific schema if using custom schema
+-- DROP SCHEMA IF EXISTS rideshare_app CASCADE;
+-- CREATE SCHEMA rideshare_app;
+
+-- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- Create custom types
-CREATE TYPE user_role AS ENUM ('student', 'admin', 'moderator');
-CREATE TYPE post_status AS ENUM ('active', 'inactive', 'deleted', 'full', 'completed', 'cancelled');
-CREATE TYPE transaction_status AS ENUM ('pending', 'completed', 'cancelled', 'disputed');
-CREATE TYPE message_type AS ENUM ('text', 'image', 'file', 'system');
-CREATE TYPE post_type AS ENUM ('question', 'study_group', 'resource', 'tutoring');
-CREATE TYPE favor_type AS ENUM ('request', 'offer');
+-- Added schema cache refresh commands after reset
+-- Force refresh Supabase schema cache by analyzing tables after reset
+ANALYZE;
 
--- User profiles table (consolidated from auth-schema and complete-schema)
-CREATE TABLE IF NOT EXISTS user_profiles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    full_name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    phone VARCHAR(20),
-    avatar_url TEXT,
-    bio TEXT,
-    university VARCHAR(100) DEFAULT 'UCLA',
-    graduation_year INTEGER,
-    major VARCHAR(100),
-    role user_role DEFAULT 'student',
-    rating DECIMAL(3,2) DEFAULT 0.00,
-    total_ratings INTEGER DEFAULT 0,
-    is_verified BOOLEAN DEFAULT FALSE,
-    is_active BOOLEAN DEFAULT TRUE,
-    last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+-- Create custom types first
+CREATE TYPE exchange_category AS ENUM ('Concert Tickets', 'Dorm Items', 'Preprofessional Help', 'Food Truck Line Service');
+CREATE TYPE price_negotiability AS ENUM ('negotiable', 'non-negotiable');
+CREATE TYPE post_status AS ENUM ('active', 'inactive', 'expired');
+
+-- User profiles table
+CREATE TABLE user_profiles (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  username VARCHAR(50) UNIQUE NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  full_name VARCHAR(255),
+  avatar_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Academic posts table (consolidated from supabase-schema and complete-schema)
-CREATE TABLE IF NOT EXISTS academic_posts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    department VARCHAR(100) NOT NULL,
-    course VARCHAR(50) NOT NULL,
-    title VARCHAR(200) NOT NULL,
-    resource VARCHAR(200) NOT NULL,
-    content TEXT,
-    description TEXT,
-    pdf_url TEXT NOT NULL,
-    uploaded_by VARCHAR(100) NOT NULL,
-    upload_date VARCHAR(50) DEFAULT 'Just now',
-    popularity INTEGER DEFAULT 0,
-    file_type VARCHAR(100),
-    file_size BIGINT,
-    download_count INTEGER DEFAULT 0,
-    status post_status DEFAULT 'active',
-    tags TEXT[],
-    attachments JSONB DEFAULT '[]',
-    post_type post_type DEFAULT 'resource',
-    course_code TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- Rideshare posts table
+CREATE TABLE rideshare_posts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  title VARCHAR(255) NOT NULL,
+  description TEXT NOT NULL,
+  departure_location VARCHAR(255) NOT NULL,
+  -- Added from_location column from fix-database-schema.sql
+  from_location TEXT,
+  destination VARCHAR(255) NOT NULL,
+  departure_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  available_seats INTEGER NOT NULL CHECK (available_seats > 0),
+  price_per_person DECIMAL(10,2) NOT NULL CHECK (price_per_person >= 0),
+  user_id UUID NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Rideshare posts table (consolidated from supabase-schema-update and complete-schema)
-CREATE TABLE IF NOT EXISTS rideshare_posts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    title VARCHAR(200) NOT NULL,
-    from_location VARCHAR(200),
-    to_location VARCHAR(200),
-    destination VARCHAR(200) NOT NULL,
-    departure_location VARCHAR(200),
-    reason TEXT,
-    description TEXT,
-    departure_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    datetime TIMESTAMP WITH TIME ZONE NOT NULL,
-    date DATE NOT NULL,
-    time TIME NOT NULL,
-    max_participants INTEGER NOT NULL DEFAULT 4,
-    participants INTEGER DEFAULT 1,
-    available_seats INTEGER NOT NULL DEFAULT 3,
-    price_per_person DECIMAL(10,2) DEFAULT 0.00,
-    organizer VARCHAR(100) NOT NULL,
-    match_strength INTEGER DEFAULT 0,
-    distance VARCHAR(50),
-    to_lat DECIMAL(10,8),
-    to_lon DECIMAL(11,8),
-    from_lat DECIMAL(10,8),
-    from_lon DECIMAL(11,8),
-    contact_info TEXT,
-    status post_status DEFAULT 'active',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- Academic posts table
+CREATE TABLE academic_posts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  department VARCHAR(100) NOT NULL,
+  course VARCHAR(100) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  resource VARCHAR(255) NOT NULL,
+  pdf_url TEXT NOT NULL,
+  user_id UUID NOT NULL,
+  upload_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  popularity INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  file_size BIGINT,
+  file_type VARCHAR(50)
 );
 
 -- Exchange posts table
-CREATE TABLE IF NOT EXISTS exchange_posts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    title VARCHAR(200) NOT NULL,
-    description TEXT NOT NULL,
-    category VARCHAR(100) NOT NULL,
-    price DECIMAL(10,2) NOT NULL,
-    condition VARCHAR(50) DEFAULT 'good',
-    location VARCHAR(200),
-    images TEXT[],
-    tags TEXT[],
-    is_negotiable BOOLEAN DEFAULT TRUE,
-    status post_status DEFAULT 'active',
-    view_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE exchange_posts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  title VARCHAR(255) NOT NULL,
+  description TEXT NOT NULL,
+  price DECIMAL(10,2) NOT NULL CHECK (price >= 0),
+  price_negotiability price_negotiability NOT NULL DEFAULT 'non-negotiable',
+  category exchange_category NOT NULL,
+  user_id UUID NOT NULL,
+  status post_status NOT NULL DEFAULT 'active',
+  duration_days INTEGER NOT NULL CHECK (duration_days > 0),
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  rating DECIMAL(3,2) CHECK (rating >= 0 AND rating <= 5),
+  review_count INTEGER DEFAULT 0 CHECK (review_count >= 0),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Favor posts table (from complete-schema)
-CREATE TABLE IF NOT EXISTS favor_posts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    title VARCHAR(200) NOT NULL,
-    description TEXT NOT NULL,
-    category VARCHAR(100) NOT NULL,
-    favor_type favor_type NOT NULL,
-    location VARCHAR(200),
-    compensation TEXT,
-    deadline TIMESTAMP WITH TIME ZONE,
-    status post_status DEFAULT 'active',
-    tags TEXT[],
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- Conversations table
+CREATE TABLE conversations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  participant_1 UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  participant_2 UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  last_message_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  CONSTRAINT participants_not_equal CHECK (participant_1 != participant_2),
+  CONSTRAINT unique_conversation UNIQUE(participant_1, participant_2)
 );
 
--- Conversations table (consolidated from messaging-schema and complete-schema)
-CREATE TABLE IF NOT EXISTS conversations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    participant_1 UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    participant_2 UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    last_message_id UUID,
-    last_message_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    is_active BOOLEAN DEFAULT TRUE,
-    is_group BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(participant_1, participant_2)
+-- Messages table
+CREATE TABLE messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  sender_id UUID NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  is_read BOOLEAN DEFAULT FALSE,
+  read_at TIMESTAMP WITH TIME ZONE
 );
 
--- Conversation members table (from messaging-schema)
-CREATE TABLE IF NOT EXISTS conversation_members (
-    conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    PRIMARY KEY (conversation_id, user_id)
-);
+-- Add explicit foreign key constraints with names for Supabase schema cache
+ALTER TABLE rideshare_posts 
+ADD CONSTRAINT rideshare_posts_user_id_fkey 
+FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
 
--- Messages table (consolidated from messaging-schema and complete-schema)
-CREATE TABLE IF NOT EXISTS messages (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
-    sender_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    content TEXT NOT NULL,
-    message_type message_type DEFAULT 'text',
-    attachment_url TEXT,
-    file_url TEXT,
-    is_read BOOLEAN DEFAULT FALSE,
-    is_deleted BOOLEAN DEFAULT FALSE,
-    is_edited BOOLEAN DEFAULT FALSE,
-    reply_to UUID REFERENCES messages(id),
-    read_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+ALTER TABLE academic_posts 
+ADD CONSTRAINT academic_posts_user_id_fkey 
+FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
 
--- Transactions table
-CREATE TABLE IF NOT EXISTS transactions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    buyer_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    seller_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    post_id UUID, -- Can reference different post types
-    post_type VARCHAR(50) NOT NULL, -- 'exchange', 'rideshare', etc.
-    amount DECIMAL(10,2) NOT NULL,
-    status transaction_status DEFAULT 'pending',
-    payment_method VARCHAR(50),
-    payment_id VARCHAR(100),
-    notes TEXT,
-    completed_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+ALTER TABLE exchange_posts 
+ADD CONSTRAINT exchange_posts_user_id_fkey 
+FOREIGN KEY (user_id) REFERENCES user_profiles(id) ON DELETE CASCADE;
 
--- Reviews/Ratings table (consolidated from complete-schema)
-CREATE TABLE IF NOT EXISTS ratings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    rater_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    rated_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    reviewer_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    reviewee_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    transaction_id UUID REFERENCES transactions(id) ON DELETE CASCADE,
-    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-    comment TEXT,
-    context_type VARCHAR(50),
-    context_id UUID,
-    is_anonymous BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(rater_id, rated_id, context_type, context_id)
-);
+-- Added schema cache refresh after foreign key creation
+-- Refresh schema cache by analyzing tables after foreign key creation
+ANALYZE exchange_posts;
+ANALYZE user_profiles;
+ANALYZE rideshare_posts;
+ANALYZE academic_posts;
 
--- Notifications table
-CREATE TABLE IF NOT EXISTS notifications (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    title VARCHAR(200) NOT NULL,
-    message TEXT NOT NULL,
-    type VARCHAR(50) NOT NULL,
-    related_id UUID, -- Can reference different entities
-    is_read BOOLEAN DEFAULT FALSE,
-    action_url TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Reports table
-CREATE TABLE IF NOT EXISTS reports (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    reporter_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    reported_user_id UUID REFERENCES user_profiles(id) ON DELETE CASCADE,
-    reported_post_id UUID, -- Can reference different post types
-    post_type VARCHAR(50),
-    reason VARCHAR(100) NOT NULL,
-    description TEXT,
-    status VARCHAR(50) DEFAULT 'pending',
-    resolved_by UUID REFERENCES user_profiles(id),
-    resolved_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_user_profiles_username ON user_profiles(username);
-CREATE INDEX IF NOT EXISTS idx_user_profiles_email ON user_profiles(email);
-CREATE INDEX IF NOT EXISTS idx_user_profiles_university ON user_profiles(university);
-CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles(user_id);
-
-CREATE INDEX IF NOT EXISTS idx_academic_posts_user_id ON academic_posts(user_id);
-CREATE INDEX IF NOT EXISTS idx_academic_posts_department ON academic_posts(department);
-CREATE INDEX IF NOT EXISTS idx_academic_posts_course ON academic_posts(course);
-CREATE INDEX IF NOT EXISTS idx_academic_posts_status ON academic_posts(status);
-CREATE INDEX IF NOT EXISTS idx_academic_posts_created_at ON academic_posts(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_academic_posts_popularity ON academic_posts(popularity);
-CREATE INDEX IF NOT EXISTS idx_academic_posts_post_type ON academic_posts(post_type);
-
-CREATE INDEX IF NOT EXISTS idx_rideshare_posts_user_id ON rideshare_posts(user_id);
-CREATE INDEX IF NOT EXISTS idx_rideshare_posts_departure_time ON rideshare_posts(departure_time);
-CREATE INDEX IF NOT EXISTS idx_rideshare_posts_destination ON rideshare_posts(destination);
-CREATE INDEX IF NOT EXISTS idx_rideshare_posts_status ON rideshare_posts(status);
-CREATE INDEX IF NOT EXISTS idx_rideshare_posts_created_at ON rideshare_posts(created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_exchange_posts_user_id ON exchange_posts(user_id);
-CREATE INDEX IF NOT EXISTS idx_exchange_posts_category ON exchange_posts(category);
-CREATE INDEX IF NOT EXISTS idx_exchange_posts_status ON exchange_posts(status);
-CREATE INDEX IF NOT EXISTS idx_exchange_posts_created_at ON exchange_posts(created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_favor_posts_user_id ON favor_posts(user_id);
-CREATE INDEX IF NOT EXISTS idx_favor_posts_category ON favor_posts(category);
-CREATE INDEX IF NOT EXISTS idx_favor_posts_favor_type ON favor_posts(favor_type);
-CREATE INDEX IF NOT EXISTS idx_favor_posts_status ON favor_posts(status);
-CREATE INDEX IF NOT EXISTS idx_favor_posts_created_at ON favor_posts(created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_conversations_participant_1 ON conversations(participant_1);
-CREATE INDEX IF NOT EXISTS idx_conversations_participant_2 ON conversations(participant_2);
-CREATE INDEX IF NOT EXISTS idx_conversations_last_message_at ON conversations(last_message_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_conversation_members_user_id ON conversation_members(user_id);
-CREATE INDEX IF NOT EXISTS idx_conversation_members_conversation_id ON conversation_members(conversation_id);
-
-CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
-CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
-CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_transactions_buyer_id ON transactions(buyer_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_seller_id ON transactions(seller_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
-CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_ratings_rater_id ON ratings(rater_id);
-CREATE INDEX IF NOT EXISTS idx_ratings_rated_id ON ratings(rated_id);
-CREATE INDEX IF NOT EXISTS idx_ratings_reviewer_id ON ratings(reviewer_id);
-CREATE INDEX IF NOT EXISTS idx_ratings_reviewee_id ON ratings(reviewee_id);
-CREATE INDEX IF NOT EXISTS idx_ratings_transaction_id ON ratings(transaction_id);
-CREATE INDEX IF NOT EXISTS idx_ratings_context_type ON ratings(context_type);
-
-CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
-CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_reports_reporter_id ON reports(reporter_id);
-CREATE INDEX IF NOT EXISTS idx_reports_reported_user_id ON reports(reported_user_id);
-CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
-
--- Create triggers for updated_at timestamps
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+-- Function to automatically set expires_at based on duration_days
+CREATE OR REPLACE FUNCTION set_exchange_post_expiry()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- Create function to handle user profile updates (from auth-schema)
-CREATE OR REPLACE FUNCTION public.handle_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = TIMEZONE('utc'::text, NOW());
-    RETURN NEW;
+  NEW.expires_at = NEW.created_at + (NEW.duration_days || ' days')::INTERVAL;
+  RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Create function to update conversation timestamp (from messaging-schema)
-CREATE OR REPLACE FUNCTION update_conversation_timestamp()
+-- Trigger to set expiry date on insert
+CREATE TRIGGER set_exchange_post_expiry_trigger
+  BEFORE INSERT ON exchange_posts
+  FOR EACH ROW
+  EXECUTE FUNCTION set_exchange_post_expiry();
+
+-- Function to auto-delete expired posts
+CREATE OR REPLACE FUNCTION delete_expired_exchange_posts()
+RETURNS void AS $$
+BEGIN
+  DELETE FROM exchange_posts 
+  WHERE expires_at < NOW() AND status = 'active';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Updated handle_new_user function with full_name and conflict handling
+-- Add trigger to sync auth.users with user_profiles automatically
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO user_profiles (id, email, username, full_name)
+  VALUES (
+    NEW.id, 
+    NEW.email, 
+    COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
+    NEW.raw_user_meta_data->>'full_name'
+  )
+  ON CONFLICT (id) DO NOTHING; -- Prevent duplicate inserts
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION handle_new_user();
+
+-- Create indexes for better performance
+CREATE INDEX idx_rideshare_posts_user_id ON rideshare_posts(user_id);
+CREATE INDEX idx_rideshare_posts_departure_time ON rideshare_posts(departure_time);
+CREATE INDEX idx_rideshare_posts_departure_location ON rideshare_posts(departure_location);
+CREATE INDEX idx_academic_posts_user_id ON academic_posts(user_id);
+CREATE INDEX idx_academic_posts_department ON academic_posts(department);
+CREATE INDEX idx_academic_posts_course ON academic_posts(course);
+CREATE INDEX idx_academic_posts_popularity ON academic_posts(popularity DESC);
+CREATE INDEX idx_conversations_participants ON conversations(participant_1, participant_2);
+CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
+CREATE INDEX idx_messages_sender_id ON messages(sender_id);
+CREATE INDEX idx_messages_created_at ON messages(created_at DESC);
+CREATE INDEX idx_exchange_posts_user_id ON exchange_posts(user_id);
+CREATE INDEX idx_exchange_posts_category ON exchange_posts(category);
+CREATE INDEX idx_exchange_posts_status ON exchange_posts(status);
+CREATE INDEX idx_exchange_posts_expires_at ON exchange_posts(expires_at);
+
+-- Row Level Security (RLS) policies
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rideshare_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE academic_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE exchange_posts ENABLE ROW LEVEL SECURITY;
+
+-- User profiles policies
+DROP POLICY IF EXISTS "Users can view all profiles" ON user_profiles;
+CREATE POLICY "Users can view all profiles" ON user_profiles FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can update own profile" ON user_profiles;
+CREATE POLICY "Users can update own profile" ON user_profiles FOR UPDATE USING (auth.uid() = id);
+
+-- Added comprehensive INSERT policies for user profiles
+-- Add missing INSERT policy for user profiles
+DROP POLICY IF EXISTS "Users can insert their profile" ON user_profiles;
+CREATE POLICY "Users can insert their profile" ON user_profiles
+FOR INSERT
+WITH CHECK (auth.uid() = id);
+
+-- Also allow anonymous users to insert profiles during signup (needed for the signup flow)
+DROP POLICY IF EXISTS "Anonymous users can insert profiles during signup" ON user_profiles;
+CREATE POLICY "Anonymous users can insert profiles during signup" ON user_profiles
+FOR INSERT
+WITH CHECK (true); -- This allows the manual profile creation during signup
+
+-- Rideshare posts policies
+DROP POLICY IF EXISTS "Anyone can view rideshare posts" ON rideshare_posts;
+CREATE POLICY "Anyone can view rideshare posts" ON rideshare_posts FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can create rideshare posts" ON rideshare_posts;
+CREATE POLICY "Users can create rideshare posts" ON rideshare_posts FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own rideshare posts" ON rideshare_posts;
+CREATE POLICY "Users can update own rideshare posts" ON rideshare_posts FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own rideshare posts" ON rideshare_posts;
+CREATE POLICY "Users can delete own rideshare posts" ON rideshare_posts FOR DELETE USING (auth.uid() = user_id);
+
+-- Academic posts policies
+DROP POLICY IF EXISTS "Anyone can view academic posts" ON academic_posts;
+CREATE POLICY "Anyone can view academic posts" ON academic_posts FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can create academic posts" ON academic_posts;
+CREATE POLICY "Users can create academic posts" ON academic_posts FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own academic posts" ON academic_posts;
+CREATE POLICY "Users can update own academic posts" ON academic_posts FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own academic posts" ON academic_posts;
+CREATE POLICY "Users can delete own academic posts" ON academic_posts FOR DELETE USING (auth.uid() = user_id);
+
+-- Exchange posts policies
+DROP POLICY IF EXISTS "Anyone can view exchange posts" ON exchange_posts;
+CREATE POLICY "Anyone can view exchange posts" ON exchange_posts FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can create exchange posts" ON exchange_posts;
+CREATE POLICY "Users can create exchange posts" ON exchange_posts FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own exchange posts" ON exchange_posts;
+CREATE POLICY "Users can update own exchange posts" ON exchange_posts FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own exchange posts" ON exchange_posts;
+CREATE POLICY "Users can delete own exchange posts" ON exchange_posts FOR DELETE USING (auth.uid() = user_id);
+
+-- Conversations policies
+DROP POLICY IF EXISTS "Users can view own conversations" ON conversations;
+CREATE POLICY "Users can view own conversations" ON conversations FOR SELECT USING (auth.uid() = participant_1 OR auth.uid() = participant_2);
+DROP POLICY IF EXISTS "Users can create conversations" ON conversations;
+CREATE POLICY "Users can create conversations" ON conversations FOR INSERT WITH CHECK (auth.uid() = participant_1 OR auth.uid() = participant_2);
+
+-- Messages policies
+DROP POLICY IF EXISTS "Users can view messages in their conversations" ON messages;
+CREATE POLICY "Users can view messages in their conversations" ON messages FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM conversations 
+    WHERE conversations.id = messages.conversation_id 
+    AND (conversations.participant_1 = auth.uid() OR conversations.participant_2 = auth.uid())
+  )
+);
+DROP POLICY IF EXISTS "Users can send messages in their conversations" ON messages;
+CREATE POLICY "Users can send messages in their conversations" ON messages FOR INSERT WITH CHECK (
+  auth.uid() = sender_id AND
+  EXISTS (
+    SELECT 1 FROM conversations 
+    WHERE conversations.id = messages.conversation_id 
+    AND (conversations.participant_1 = auth.uid() OR conversations.participant_2 = auth.uid())
+  )
+);
+
+-- Function to update conversation last_message_at when new message is added
+CREATE OR REPLACE FUNCTION update_conversation_last_message()
 RETURNS TRIGGER AS $$
 BEGIN
   UPDATE conversations 
-  SET updated_at = NOW() 
+  SET last_message_at = NEW.created_at 
   WHERE id = NEW.conversation_id;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Create function to update conversation last_message_at (from complete-schema)
-CREATE OR REPLACE FUNCTION update_conversation_last_message()
-RETURNS TRIGGER AS $$
-BEGIN
-    UPDATE conversations 
-    SET last_message_at = NEW.created_at 
-    WHERE id = NEW.conversation_id;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- Create all triggers
-CREATE TRIGGER update_user_profiles_updated_at BEFORE UPDATE ON user_profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER handle_updated_at BEFORE UPDATE ON user_profiles FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
-CREATE TRIGGER update_academic_posts_updated_at BEFORE UPDATE ON academic_posts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_rideshare_posts_updated_at BEFORE UPDATE ON rideshare_posts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_exchange_posts_updated_at BEFORE UPDATE ON exchange_posts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_favor_posts_updated_at BEFORE UPDATE ON favor_posts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_conversations_updated_at BEFORE UPDATE ON conversations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_messages_updated_at BEFORE UPDATE ON messages FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_transactions_updated_at BEFORE UPDATE ON transactions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_ratings_updated_at BEFORE UPDATE ON ratings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- Conversation timestamp triggers
-CREATE TRIGGER update_conversation_timestamp_trigger
+-- Trigger to update conversation timestamp
+CREATE TRIGGER update_conversation_last_message_trigger
   AFTER INSERT ON messages
   FOR EACH ROW
-  EXECUTE FUNCTION update_conversation_timestamp();
+  EXECUTE FUNCTION update_conversation_last_message();
 
-CREATE TRIGGER update_conversation_last_message_trigger 
-    AFTER INSERT ON messages 
-    FOR EACH ROW 
-    EXECUTE FUNCTION update_conversation_last_message();
-
--- Enable Row Level Security
-ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE academic_posts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE rideshare_posts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE exchange_posts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE favor_posts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE conversation_members ENABLE ROW LEVEL SECURITY;
-ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ratings ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
-
--- Create RLS policies
--- User profiles policies (from auth-schema and complete-schema)
-CREATE POLICY "Users can view all profiles" ON user_profiles FOR SELECT USING (true);
-CREATE POLICY "Users can update own profile" ON user_profiles FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own profile" ON user_profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
-
--- Academic posts policies
-CREATE POLICY "Anyone can view academic posts" ON academic_posts FOR SELECT USING (true);
-CREATE POLICY "Users can create academic posts" ON academic_posts FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own academic posts" ON academic_posts FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own academic posts" ON academic_posts FOR DELETE USING (auth.uid() = user_id);
-
--- Rideshare posts policies
-CREATE POLICY "Anyone can view rideshare posts" ON rideshare_posts FOR SELECT USING (true);
-CREATE POLICY "Users can create rideshare posts" ON rideshare_posts FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own rideshare posts" ON rideshare_posts FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own rideshare posts" ON rideshare_posts FOR DELETE USING (auth.uid() = user_id);
-
--- Exchange posts policies
-CREATE POLICY "Anyone can view active exchange posts" ON exchange_posts FOR SELECT USING (status = 'active');
-CREATE POLICY "Users can insert own exchange posts" ON exchange_posts FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own exchange posts" ON exchange_posts FOR UPDATE USING (auth.uid() = user_id);
-
--- Favor posts policies
-CREATE POLICY "Anyone can view favor posts" ON favor_posts FOR SELECT USING (true);
-CREATE POLICY "Users can create favor posts" ON favor_posts FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own favor posts" ON favor_posts FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own favor posts" ON favor_posts FOR DELETE USING (auth.uid() = user_id);
-
--- Conversations policies (from messaging-schema and complete-schema)
-CREATE POLICY "Users can view own conversations" ON conversations FOR SELECT USING (auth.uid() = participant_1 OR auth.uid() = participant_2);
-CREATE POLICY "Users can create conversations" ON conversations FOR INSERT WITH CHECK (auth.uid() = participant_1 OR auth.uid() = participant_2);
-CREATE POLICY "Users can update own conversations" ON conversations FOR UPDATE USING (auth.uid() = participant_1 OR auth.uid() = participant_2);
-
--- Conversation members policies
-CREATE POLICY "Users can view conversation members for their conversations" ON conversation_members FOR SELECT USING (
-    conversation_id IN (
-      SELECT conversation_id FROM conversation_members 
-      WHERE user_id = auth.uid()
-    )
-  );
-
--- Messages policies (consolidated from messaging-schema and complete-schema)
-CREATE POLICY "Users can view messages in their conversations" ON messages FOR SELECT USING (
-    EXISTS (
-        SELECT 1 FROM conversations 
-        WHERE conversations.id = messages.conversation_id 
-        AND (conversations.participant_1 = auth.uid() OR conversations.participant_2 = auth.uid())
-    )
-);
-CREATE POLICY "Users can send messages in their conversations" ON messages FOR INSERT WITH CHECK (
-    auth.uid() = sender_id AND
-    EXISTS (
-        SELECT 1 FROM conversations 
-        WHERE conversations.id = messages.conversation_id 
-        AND (conversations.participant_1 = auth.uid() OR conversations.participant_2 = auth.uid())
-    )
-);
-
--- Transactions policies
-CREATE POLICY "Users can view own transactions" ON transactions FOR SELECT USING (auth.uid() = buyer_id OR auth.uid() = seller_id);
-CREATE POLICY "Users can insert transactions they participate in" ON transactions FOR INSERT WITH CHECK (auth.uid() = buyer_id OR auth.uid() = seller_id);
-CREATE POLICY "Users can update own transactions" ON transactions FOR UPDATE USING (auth.uid() = buyer_id OR auth.uid() = seller_id);
-
--- Ratings policies
-CREATE POLICY "Anyone can view ratings" ON ratings FOR SELECT USING (true);
-CREATE POLICY "Users can create ratings" ON ratings FOR INSERT WITH CHECK (auth.uid() = rater_id OR auth.uid() = reviewer_id);
-CREATE POLICY "Users can update own ratings" ON ratings FOR UPDATE USING (auth.uid() = rater_id OR auth.uid() = reviewer_id);
-
--- Notifications policies
-CREATE POLICY "Users can view own notifications" ON notifications FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can update own notifications" ON notifications FOR UPDATE USING (auth.uid() = user_id);
-
--- Reports policies
-CREATE POLICY "Users can view own reports" ON reports FOR SELECT USING (auth.uid() = reporter_id);
-CREATE POLICY "Users can insert reports" ON reports FOR INSERT WITH CHECK (auth.uid() = reporter_id);
-
--- Create storage bucket for academic files (from supabase-schema-update)
-INSERT INTO storage.buckets (id, name, public) VALUES ('academic-files', 'academic-files', true) ON CONFLICT (id) DO NOTHING;
-
--- Create storage policies
-CREATE POLICY "Anyone can view academic files" ON storage.objects FOR SELECT USING (bucket_id = 'academic-files');
-CREATE POLICY "Authenticated users can upload academic files" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'academic-files' AND auth.role() = 'authenticated');
-CREATE POLICY "Users can update own academic files" ON storage.objects FOR UPDATE USING (bucket_id = 'academic-files' AND auth.uid()::text = (storage.foldername(name))[1]);
-CREATE POLICY "Users can delete own academic files" ON storage.objects FOR DELETE USING (bucket_id = 'academic-files' AND auth.uid()::text = (storage.foldername(name))[1]);
-
--- Enable realtime for messages (from messaging-schema)
-ALTER PUBLICATION supabase_realtime ADD TABLE messages;
-ALTER PUBLICATION supabase_realtime ADD TABLE conversations;
-ALTER PUBLICATION supabase_realtime ADD TABLE conversation_members;
-
--- Grant necessary permissions
-GRANT USAGE ON SCHEMA public TO anon, authenticated;
-GRANT ALL ON public.user_profiles TO anon, authenticated;
-GRANT ALL ON public.academic_posts TO anon, authenticated;
-GRANT ALL ON public.rideshare_posts TO anon, authenticated;
-GRANT ALL ON public.exchange_posts TO anon, authenticated;
-GRANT ALL ON public.favor_posts TO anon, authenticated;
-GRANT ALL ON public.conversations TO anon, authenticated;
-GRANT ALL ON public.conversation_members TO anon, authenticated;
-GRANT ALL ON public.messages TO anon, authenticated;
-GRANT ALL ON public.transactions TO anon, authenticated;
-GRANT ALL ON public.ratings TO anon, authenticated;
-GRANT ALL ON public.notifications TO anon, authenticated;
-GRANT ALL ON public.reports TO anon, authenticated;
-
--- Insert sample data (consolidated from various schemas)
-INSERT INTO user_profiles (user_id, username, full_name, email, university, major, bio, avatar_url) VALUES
-(uuid_generate_v4(), 'sarah_chen', 'Sarah Chen', 'sarah.chen@ucla.edu', 'UCLA', 'Computer Science', 'CS major, love helping others with coding!', 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face'),
-(uuid_generate_v4(), 'marcus_johnson', 'Marcus Johnson', 'marcus.j@ucla.edu', 'UCLA', 'Business Economics', 'Business student passionate about entrepreneurship', 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face'),
-(uuid_generate_v4(), 'alex_kim', 'Alex Kim', 'alex.kim@ucla.edu', 'UCLA', 'Computer Science', 'Senior CS student, TA for multiple courses', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face'),
-(uuid_generate_v4(), 'emma_rodriguez', 'Emma Rodriguez', 'emma.r@ucla.edu', 'UCLA', 'Mathematics', 'Math tutor and study group organizer', 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40&h=40&fit=crop&crop=face'),
-(uuid_generate_v4(), 'david_park', 'David Park', 'david.park@ucla.edu', 'UCLA', 'Economics', 'Econ major, finance enthusiast', 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face')
-ON CONFLICT (username) DO NOTHING;
-
--- Insert sample academic posts (from supabase-schema)
-INSERT INTO academic_posts (department, course, title, resource, pdf_url, uploaded_by, upload_date, popularity, file_type, file_size) VALUES
-('Computer Science (CS)', 'CS 31', 'Introduction to Computer Science I', 'Midterm Practice Questions', 'https://web.cs.ucla.edu/classes/fall23/cs31/Exams/midterm_practice.pdf', 'Sarah Chen', '2 days ago', 95, 'application/pdf', 1024000),
-('Political Science (Pol Sci)', 'Pol Sci 10', 'Introduction to Political Theory', 'Final Exam Study Guide', 'https://www.polisci.ucla.edu/sites/default/files/study_guide_final.pdf', 'Marcus Johnson', '1 week ago', 87, 'application/pdf', 2048000),
-('Computer Science (CS)', 'CS 111', 'Operating Systems Principles', 'Project 2 Solution Guide', 'https://web.cs.ucla.edu/classes/fall23/cs111/projects/project2_solution.pdf', 'Alex Kim', '3 days ago', 92, 'application/pdf', 1536000),
-('Mathematics (Math)', 'Math 31A', 'Differential and Integral Calculus', 'Chapter 5 Practice Problems', 'https://www.math.ucla.edu/~tao/resource/general/math31a/practice_ch5.pdf', 'Emma Rodriguez', '5 days ago', 78, 'application/pdf', 768000)
-ON CONFLICT DO NOTHING;
-
--- Insert sample rideshare posts (from supabase-schema-update)
-INSERT INTO rideshare_posts (title, destination, reason, date, time, datetime, max_participants, participants, organizer, match_strength, distance) VALUES
-('SZA Concert', 'SoFi Stadium', 'Going to see SZA live! Split the Uber cost.', '2024-06-26', '18:00', '2024-06-26T18:00:00Z', 4, 2, 'Maya P.', 95, '0.2 miles away'),
-('LAX Airport', 'Terminal 1', 'Early morning flight, need to share ride costs.', '2024-06-27', '08:00', '2024-06-27T08:00:00Z', 3, 1, 'David L.', 87, '0.5 miles away'),
-('UCLA Basketball Game', 'Pauley Pavilion', 'Go Bruins! Let''s carpool to the game.', '2024-06-28', '19:30', '2024-06-28T19:30:00Z', 4, 3, 'Jessica M.', 92, '1.2 miles away')
-ON CONFLICT DO NOTHING;
+-- Added final verification query for foreign key relationships
+-- Verify the relationship exists
+SELECT 
+    tc.constraint_name, 
+    tc.table_name, 
+    kcu.column_name, 
+    ccu.table_name AS foreign_table_name,
+    ccu.column_name AS foreign_column_name 
+FROM 
+    information_schema.table_constraints AS tc 
+    JOIN information_schema.key_column_usage AS kcu
+      ON tc.constraint_name = kcu.constraint_name
+      AND tc.table_schema = kcu.table_schema
+    JOIN information_schema.constraint_column_usage AS ccu
+      ON ccu.constraint_name = tc.constraint_name
+      AND ccu.table_schema = tc.table_schema
+WHERE tc.constraint_type = 'FOREIGN KEY' 
+AND tc.table_name='exchange_posts';

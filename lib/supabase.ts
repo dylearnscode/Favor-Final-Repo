@@ -4,11 +4,24 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 if (!supabaseUrl || !supabaseAnonKey) {
+  console.error("[v0] Missing Supabase environment variables:", {
+    url: !!supabaseUrl,
+    key: !!supabaseAnonKey,
+  })
   throw new Error("Missing Supabase environment variables")
 }
 
+export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true, // Stores session in localStorage
+    autoRefreshToken: true, // Automatically refreshes JWT tokens
+    detectSessionInUrl: true, // Handles auth redirects properly
+    flowType: "pkce", // More secure for web apps
+  },
+})
+
 export const createClient = () => {
-  return createSupabaseClient(supabaseUrl, supabaseAnonKey)
+  return supabase
 }
 
 export type Database = {
@@ -48,6 +61,7 @@ export type Database = {
           title: string
           description: string
           departure_location: string
+          from_location: string // Added missing from_location column
           destination: string
           departure_time: string
           available_seats: number
@@ -60,6 +74,7 @@ export type Database = {
           title: string
           description: string
           departure_location: string
+          from_location?: string // Added missing from_location column
           destination: string
           departure_time: string
           available_seats: number
@@ -72,6 +87,7 @@ export type Database = {
           title?: string
           description?: string
           departure_location?: string
+          from_location?: string // Added missing from_location column
           destination?: string
           departure_time?: string
           available_seats?: number
@@ -122,6 +138,106 @@ export type Database = {
           created_at?: string
           file_size?: number | null
           file_type?: string | null
+        }
+      }
+      exchange_posts: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          price: number
+          price_negotiability: "negotiable" | "non-negotiable"
+          category: "Concert Tickets" | "Dorm Items" | "Preprofessional Help" | "Food Truck Line Service"
+          user_id: string
+          status: "active" | "inactive" | "expired"
+          duration_days: number
+          expires_at: string
+          rating: number | null
+          review_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description: string
+          price: number
+          price_negotiability?: "negotiable" | "non-negotiable"
+          category: "Concert Tickets" | "Dorm Items" | "Preprofessional Help" | "Food Truck Line Service"
+          user_id: string
+          status?: "active" | "inactive" | "expired"
+          duration_days: number
+          expires_at?: string
+          rating?: number | null
+          review_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string
+          price?: number
+          price_negotiability?: "negotiable" | "non-negotiable"
+          category?: "Concert Tickets" | "Dorm Items" | "Preprofessional Help" | "Food Truck Line Service"
+          user_id?: string
+          status?: "active" | "inactive" | "expired"
+          duration_days?: number
+          expires_at?: string
+          rating?: number | null
+          review_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      conversations: {
+        Row: {
+          id: string
+          participant_1: string
+          participant_2: string
+          created_at: string
+          last_message_at: string
+        }
+        Insert: {
+          id?: string
+          participant_1: string
+          participant_2: string
+          created_at?: string
+          last_message_at?: string
+        }
+        Update: {
+          id?: string
+          participant_1?: string
+          participant_2?: string
+          last_message_at?: string
+        }
+      }
+      messages: {
+        Row: {
+          id: string
+          conversation_id: string
+          sender_id: string
+          content: string
+          created_at: string
+          is_read: boolean
+          read_at: string | null
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          sender_id: string
+          content: string
+          created_at?: string
+          is_read?: boolean
+          read_at?: string | null
+        }
+        Update: {
+          id?: string
+          conversation_id?: string
+          sender_id?: string
+          content?: string
+          is_read?: boolean
+          read_at?: string | null
         }
       }
     }

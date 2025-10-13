@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -12,6 +11,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
 import { signIn, signUp } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
+import { useSession } from "@/components/providers/session-provider"
+import { useEffect } from "react"
 import Link from "next/link"
 
 interface AuthFormProps {
@@ -27,8 +28,15 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [error, setError] = useState("")
   const router = useRouter()
   const { toast } = useToast()
+  const { session, loading: sessionLoading } = useSession()
 
-  // More permissive email validation
+  useEffect(() => {
+    if (session && !sessionLoading) {
+      console.log("[v0] Session ready, redirecting to exchange")
+      router.push("/exchange")
+    }
+  }, [session, sessionLoading, router])
+
   const isValidEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email)
@@ -36,7 +44,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
   const handleBypass = () => {
     localStorage.setItem("favor_bypass_auth", "true")
-    router.push("/academic")
+    router.push("/exchange")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,7 +52,6 @@ export function AuthForm({ mode }: AuthFormProps) {
     setLoading(true)
     setError("")
 
-    // Basic validation
     if (!isValidEmail(email)) {
       setError("Please enter a valid email address")
       setLoading(false)
@@ -65,22 +72,23 @@ export function AuthForm({ mode }: AuthFormProps) {
 
     try {
       if (mode === "signup") {
-        // Call signUp with all required data
+        console.log("[v0] Starting signup process")
         const result = await signUp({ email, password, username, fullName })
 
         toast({
           title: "Account created successfully",
           description: "Please check your email to verify your account.",
         })
-        router.push("/auth/signin")
+        console.log("[v0] Signup complete, waiting for session")
       } else {
+        console.log("[v0] Starting signin process")
         const result = await signIn({ email, password })
 
         toast({
           title: "Signed in successfully",
           description: "Welcome back!",
         })
-        router.push("/academic")
+        console.log("[v0] Signin complete, waiting for session")
       }
     } catch (error) {
       console.error("Auth error:", error)
@@ -148,7 +156,6 @@ export function AuthForm({ mode }: AuthFormProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                // Remove restrictive validation attributes
                 pattern="[^@\s]+@[^@\s]+\.[^@\s]+"
                 title="Please enter a valid email address"
               />
